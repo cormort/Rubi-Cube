@@ -1,0 +1,1072 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <meta name="theme-color" content="#07101d">
+  <title>圖論魔術方塊 - 雙模旗艦版</title>
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    :root {
+      --bg: #07101d; --panel: #0d1929; --panel-elevated: #13243a; --line: #223c58;
+      --ink: #edf6ff; --muted: #8ba2ba; --accent: #61dafb; --green: #35d39a;
+      --orange: #ff9f43; --purple: #b388ff; --red: #ff5252;
+    }
+    html, body {
+      margin: 0; padding: 0; min-height: 100vh;
+      background: radial-gradient(circle at 50% -10%, #16365c 0%, var(--bg) 40%);
+      color: var(--ink);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", sans-serif;
+      user-select: none;
+    }
+    .app-container {
+      max-width: 1280px; margin: 0 auto; padding: 10px 14px 20px;
+      display: flex; flex-direction: column; min-height: 100vh;
+    }
+
+    /* 頂部 Header */
+    header {
+      padding: 6px 4px 12px; display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid rgba(34, 60, 88, 0.5);
+    }
+    .brand { font-size: 1.15rem; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+    .badge {
+      font-size: 0.7rem; padding: 2px 7px; border-radius: 999px;
+      background: rgba(97,218,251,0.12); color: var(--accent); border: 1px solid rgba(97,218,251,0.3);
+    }
+    .header-actions { display: flex; gap: 6px; }
+    .btn-icon {
+      background: var(--panel-elevated); border: 1px solid var(--line); color: var(--ink);
+      border-radius: 8px; padding: 6px 10px; font-size: 0.78rem; font-weight: 600; cursor: pointer;
+      transition: all 0.12s ease;
+    }
+    .btn-icon:hover { border-color: var(--accent); }
+    .btn-icon.active { background: rgba(97,218,251,0.2); border-color: var(--accent); color: var(--accent); }
+
+    /* 雙欄主佈局架構 (桌機並排 / 手機切換) */
+    .workspace {
+      display: grid; grid-template-columns: 1fr; gap: 14px; margin-top: 10px; flex: 1;
+    }
+
+    /* 手機端專屬 Tab (桌機自動隱藏) */
+    .mobile-tabs {
+      display: flex; background: rgba(9, 18, 30, 0.8); padding: 3px;
+      border-radius: 12px; border: 1px solid var(--line); margin-bottom: 2px;
+    }
+    .tab-btn {
+      flex: 1; text-align: center; padding: 7px 2px; font-size: 0.78rem; font-weight: 700;
+      color: var(--muted); border-radius: 9px; background: transparent; border: none; cursor: pointer;
+    }
+    .tab-btn.active {
+      background: linear-gradient(135deg, #1881b0, #14598a); color: #fff;
+    }
+
+    /* 卡片模組通用樣式 */
+    .card {
+      background: rgba(13, 25, 41, 0.95); border: 1px solid var(--line);
+      border-radius: 16px; padding: 14px; display: flex; flex-direction: column;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.35); position: relative;
+    }
+    .card-title {
+      font-size: 0.95rem; font-weight: 800; margin: 0 0 10px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+
+    /* 3D 空間舞台 */
+    .cube-stage {
+      height: 280px; display: grid; place-items: center; touch-action: none;
+      background: radial-gradient(circle at 50% 50%, rgba(24,55,94,0.35) 0%, rgba(7,16,29,0.92) 75%);
+      position: relative; overflow: hidden; border-radius: 12px; border: 1px solid rgba(34,60,88,0.4);
+      cursor: grab;
+    }
+    .cube-stage:active { cursor: grabbing; }
+    .scene { width: 180px; height: 180px; perspective: 800px; display: grid; place-items: center; }
+    .cube-view {
+      width: 140px; height: 140px; position: relative; transform-style: preserve-3d;
+      transform: rotateX(-24deg) rotateY(36deg);
+    }
+    .cubie {
+      position: absolute; left: 48px; top: 48px; width: 44px; height: 44px;
+      transform-style: preserve-3d; will-change: transform;
+    }
+    .cubie-core {
+      position: absolute; inset: 1px; background: #05080c; border-radius: 6px;
+      box-shadow: inset 0 0 0 1.5px #151d26, 0 3px 6px rgba(0,0,0,0.8);
+    }
+    .sticker {
+      position: absolute; inset: 2.5px; border-radius: 5px; border: 1.5px solid #06090d;
+      box-shadow: inset 0 0 6px rgba(255,255,255,0.25); backface-visibility: hidden;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .center-label {
+      font-size: 14px; font-weight: 900; font-family: monospace;
+      color: rgba(0, 0, 0, 0.45); text-shadow: 0 0 3px rgba(255, 255, 255, 0.4);
+    }
+    .sf { transform: translateZ(22px); }
+    .sb { transform: rotateY(180deg) translateZ(22px); }
+    .sr { transform: rotateY(90deg) translateZ(22px); }
+    .sl { transform: rotateY(-90deg) translateZ(22px); }
+    .su { transform: rotateX(90deg) translateZ(22px); }
+    .sd { transform: rotateX(-90deg) translateZ(22px); }
+
+    /* 3D 穿心軸線與廣告牌常向標籤 */
+    .guides-layer { position: absolute; inset: 0; transform-style: preserve-3d; pointer-events: none; }
+    .axis-beam { position: absolute; left: 50%; top: 50%; transform-style: preserve-3d; }
+    .axis-beam.x {
+      width: 250px; height: 1.5px; margin-left: -125px; margin-top: -0.75px;
+      background: linear-gradient(90deg, rgba(249,115,22,0.8), transparent 48%, transparent 52%, rgba(239,68,68,0.8));
+    }
+    .axis-beam.y {
+      width: 1.5px; height: 250px; margin-left: -0.75px; margin-top: -125px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.9), transparent 48%, transparent 52%, rgba(255,212,0,0.85));
+    }
+    .axis-beam.z {
+      width: 1.5px; height: 250px; margin-left: -0.75px; margin-top: -125px;
+      background: linear-gradient(180deg, rgba(37,99,235,0.85), transparent 48%, transparent 52%, rgba(16,185,129,0.85));
+      transform: rotateX(90deg);
+    }
+
+    .face-pin { position: absolute; left: 50%; top: 50%; width: 0; height: 0; transform-style: preserve-3d; }
+    .pin-u { transform: translateY(-112px); }
+    .pin-d { transform: translateY(112px); }
+    .pin-f { transform: translateZ(112px); }
+    .pin-b { transform: translateZ(-112px); }
+    .pin-r { transform: translateX(112px); }
+    .pin-l { transform: translateX(-112px); }
+
+    .pin-badge {
+      position: absolute; left: 0; top: 0; transform-origin: 0 0;
+      transform: rotateY(calc(-1 * var(--ry, 36deg))) rotateX(calc(-1 * var(--rx, -24deg))) translate(-50%, -50%);
+      white-space: nowrap; pointer-events: none; font-size: 0.68rem; font-weight: 800; padding: 2px 7px;
+      border-radius: 999px; background: rgba(13, 25, 41, 0.92); border: 1.5px solid rgba(255,255,255,0.3);
+      display: flex; align-items: center; gap: 4px; box-shadow: 0 3px 10px rgba(0,0,0,0.6);
+      transition: opacity 0.2s ease, transform 0.1s ease-out; backface-visibility: visible;
+    }
+    .pin-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+    .face-pin.is-front .pin-badge { opacity: 1; filter: drop-shadow(0 0 6px rgba(97,218,251,0.5)); }
+    .face-pin.is-back .pin-badge { opacity: 0.32; filter: grayscale(0.5); }
+
+    .stage-hud {
+      position: absolute; top: 8px; left: 10px; font-size: 0.65rem; color: #6482a0;
+      background: rgba(7,16,29,0.75); padding: 3px 8px; border-radius: 6px; pointer-events: none;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .spring-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+
+    /* ================= 空間十字羅盤控制器 ================= */
+    .spatial-deck {
+      margin-top: 10px; display: flex; flex-direction: column; gap: 6px;
+    }
+    .compass-container {
+      display: grid; grid-template-columns: 1fr 1.35fr 1fr; grid-template-rows: auto auto auto;
+      gap: 5px; align-items: center; justify-items: center; max-width: 380px; margin: 0 auto; width: 100%;
+    }
+    .dir-unit { display: flex; gap: 4px; width: 100%; }
+    .dir-unit.vertical { flex-direction: column; width: 100%; }
+    .pos-top { grid-column: 2; grid-row: 1; }
+    .pos-bottom { grid-column: 2; grid-row: 3; }
+    .pos-left { grid-column: 1; grid-row: 2; }
+    .pos-right { grid-column: 3; grid-row: 2; }
+
+    .pos-center {
+      grid-column: 2; grid-row: 2; width: 100%;
+      display: flex; flex-direction: column; gap: 4px;
+      padding: 4px; border-radius: 12px; background: rgba(7, 16, 29, 0.7);
+      border: 1px dashed rgba(97, 218, 251, 0.4);
+    }
+    .center-row { display: flex; gap: 4px; width: 100%; }
+
+    .dpad-btn {
+      flex: 1; min-height: 38px; border: 1px solid #294768; border-radius: 9px;
+      background: var(--panel-elevated); color: var(--ink); font-weight: 800; font-size: 0.88rem;
+      display: flex; align-items: center; justify-content: center; gap: 3px;
+      touch-action: manipulation; cursor: pointer; transition: all 0.1s ease;
+    }
+    .dpad-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .dpad-btn:active { transform: scale(0.92); background: #1c3656; }
+    .dpad-btn.prime { color: #8ecbff; background: #0c1a2c; border-color: #1a3550; }
+
+    .btn-f {
+      background: linear-gradient(135deg, rgba(16,185,129,0.3), rgba(16,185,129,0.15)) !important;
+      border-color: #10b981 !important; color: #a7f3d0 !important;
+    }
+    .btn-b {
+      background: linear-gradient(135deg, rgba(37,99,235,0.3), rgba(37,99,235,0.15)) !important;
+      border-color: #2563eb !important; color: #bfdbfe !important;
+    }
+
+    .action-row {
+      display: grid; grid-template-columns: 1fr 1fr 1.3fr; gap: 6px;
+      max-width: 380px; margin: 6px auto 0; width: 100%;
+    }
+    .action-btn {
+      min-height: 36px; border-radius: 9px; font-weight: 700; font-size: 0.78rem;
+      border: 1px solid var(--line); background: var(--panel-elevated); color: var(--ink);
+      display: flex; align-items: center; justify-content: center; gap: 4px;
+      touch-action: manipulation; cursor: pointer;
+    }
+    .action-btn:active { transform: scale(0.94); }
+    .action-btn.primary { background: linear-gradient(135deg, #1881b0, #14598a); border: none; }
+    .action-btn.solve { background: linear-gradient(135deg, #168d65, #146147); border: none; }
+
+    /* 儀表狀態 */
+    .mini-status {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px;
+    }
+    .status-item {
+      padding: 6px 4px; border: 1px solid var(--line); border-radius: 10px;
+      text-align: center; background: rgba(10,20,33,0.5);
+    }
+    .status-item b { display: block; font-size: 0.95rem; color: var(--accent); }
+    .status-item small { font-size: 0.65rem; color: var(--muted); }
+
+    /* 右側畫布 (凱萊圖 + 貼紙展開) */
+    .canvas-card { display: flex; flex-direction: column; gap: 10px; }
+    .canvas-wrap {
+      flex: 1; min-height: 240px; border-radius: 12px; background: #060e18;
+      border: 1px solid var(--line); position: relative; overflow: hidden;
+    }
+    canvas { display: block; width: 100%; height: 100%; }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.65);
+      backdrop-filter: blur(4px); display: none; z-index: 100; place-items: center;
+    }
+    .modal-backdrop.open { display: grid; }
+    .modal-sheet {
+      width: 90%; max-width: 440px; background: var(--panel); border-radius: 16px;
+      border: 1px solid var(--line); padding: 18px; display: flex; flex-direction: column; gap: 10px;
+    }
+    .sheet-title { display: flex; justify-content: space-between; align-items: center; font-weight: 800; }
+    .preset-item {
+      padding: 11px 14px; border-radius: 10px; background: var(--panel-elevated);
+      border: 1px solid var(--line); text-align: left; color: var(--ink); font-weight: 600; font-size: 0.82rem;
+      cursor: pointer;
+    }
+    .preset-item:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ================= 響應式佈局規則 (RWD) ================= */
+    /* 桌機與平板寬螢幕模式 (>= 860px) */
+    @media (min-width: 860px) {
+      .mobile-tabs { display: none; } /* 寬螢幕時隱藏手機 Tab */
+      .workspace {
+        grid-template-columns: minmax(360px, 1fr) minmax(420px, 1.25fr);
+      }
+      .cube-stage { height: 340px; }
+      .canvas-wrap { min-height: 260px; }
+    }
+
+    /* 手機直向窄螢幕模式 (< 860px) */
+    @media (max-width: 859px) {
+      .mobile-tab-view { display: none; }
+      .mobile-tab-view.active { display: flex; }
+      .cube-stage { height: 260px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+  <header>
+    <div class="brand">
+      <span>🧩 圖論魔術方塊</span>
+      <span class="badge">雙模旗艦版</span>
+    </div>
+    <div class="header-actions">
+      <!-- 陀螺儀彈簧回正開關 -->
+      <button class="btn-icon active" id="toggleSpring">🧲 自動回正: 開</button>
+      <button class="btn-icon" id="openPresets">✨ 經典公式</button>
+      <button class="btn-icon" id="resetBtn">重設</button>
+    </div>
+  </header>
+
+  <!-- 手機端 Tab 切換導覽列 (桌機螢幕自動隱藏) -->
+  <nav class="mobile-tabs">
+    <button class="tab-btn active" data-tab="col-left">🎲 3D 空間方塊</button>
+    <button class="tab-btn" data-tab="col-right">🕸️ 凱萊圖與軌道</button>
+  </nav>
+
+  <div class="workspace">
+    <!-- 左欄：3D 方塊 + 空間十字羅盤 -->
+    <section class="card mobile-tab-view active" id="col-left">
+      <div class="card-title">
+        <span>3D 本體座標空間</span>
+        <small style="font-size:0.72rem;color:var(--muted)">滑鼠/觸控拖動 · 支援鍵盤 U/D/L/R/F/B</small>
+      </div>
+
+      <!-- 3D 舞台 -->
+      <div class="cube-stage" id="cubeStage">
+        <div class="stage-hud" id="springHud">
+          <i class="spring-dot"></i>
+          <span>陀螺儀回正啟用中（鬆手自動彈回）</span>
+        </div>
+
+        <div class="scene">
+          <div class="cube-view" id="cube">
+            <!-- 3D 穿心基準線與 6 面常向標籤 -->
+            <div class="guides-layer">
+              <div class="axis-beam x"></div>
+              <div class="axis-beam y"></div>
+              <div class="axis-beam z"></div>
+
+              <div class="face-pin pin-u" id="pin-u">
+                <div class="pin-badge" style="border-color:#fff"><i class="pin-dot" style="background:#fff"></i>U · 上</div>
+              </div>
+              <div class="face-pin pin-d" id="pin-d">
+                <div class="pin-badge" style="border-color:#ffd400"><i class="pin-dot" style="background:#ffd400"></i>D · 下</div>
+              </div>
+              <div class="face-pin pin-f" id="pin-f">
+                <div class="pin-badge" style="border-color:#10b981"><i class="pin-dot" style="background:#10b981"></i>F · 前</div>
+              </div>
+              <div class="face-pin pin-b" id="pin-b">
+                <div class="pin-badge" style="border-color:#2563eb"><i class="pin-dot" style="background:#2563eb"></i>B · 後</div>
+              </div>
+              <div class="face-pin pin-r" id="pin-r">
+                <div class="pin-badge" style="border-color:#ef4444"><i class="pin-dot" style="background:#ef4444"></i>R · 右</div>
+              </div>
+              <div class="face-pin pin-l" id="pin-l">
+                <div class="pin-badge" style="border-color:#f97316"><i class="pin-dot" style="background:#f97316"></i>L · 左</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 空間十字羅盤控制器 -->
+      <div class="spatial-deck">
+        <div class="compass-container">
+          <!-- 上: U -->
+          <div class="dir-unit pos-top">
+            <button class="dpad-btn" data-move="U">U 頂順</button>
+            <button class="dpad-btn prime" data-move="U′">U′ 頂逆</button>
+          </div>
+
+          <!-- 左: L -->
+          <div class="dir-unit vertical pos-left">
+            <button class="dpad-btn" data-move="L">L 左順</button>
+            <button class="dpad-btn prime" data-move="L′">L′ 左逆</button>
+          </div>
+
+          <!-- 中軸核心: F 與 B 深度靶心樞紐 -->
+          <div class="pos-center">
+            <div class="center-row">
+              <button class="dpad-btn btn-f" data-move="F">F 前順</button>
+              <button class="dpad-btn btn-f prime" data-move="F′">F′ 前逆</button>
+            </div>
+            <div class="center-row">
+              <button class="dpad-btn btn-b" data-move="B">B 後順</button>
+              <button class="dpad-btn btn-b prime" data-move="B′">B′ 後逆</button>
+            </div>
+          </div>
+
+          <!-- 右: R -->
+          <div class="dir-unit vertical pos-right">
+            <button class="dpad-btn" data-move="R">R 右順</button>
+            <button class="dpad-btn prime" data-move="R′">R′ 右逆</button>
+          </div>
+
+          <!-- 下: D -->
+          <div class="dir-unit pos-bottom">
+            <button class="dpad-btn" data-move="D">D 底順</button>
+            <button class="dpad-btn prime" data-move="D′">D′ 底逆</button>
+          </div>
+        </div>
+
+        <div class="action-row">
+          <button class="action-btn primary" id="scrambleBtn">🎲 打亂 6 步</button>
+          <button class="action-btn" id="undoBtn">↶ 回退</button>
+          <button class="action-btn solve" id="solveBtn">✨ BFS 最短還原</button>
+        </div>
+      </div>
+
+      <!-- 數據儀表 -->
+      <div class="mini-status">
+        <div class="status-item"><b id="depthVal">0</b><small>當前深度</small></div>
+        <div class="status-item"><b id="nodesVal">1</b><small>探索狀態</small></div>
+        <div class="status-item"><b id="cyclesVal">0</b><small>閉合環路</small></div>
+        <div class="status-item"><b id="orderVal">1</b><small>置換階數</small></div>
+      </div>
+    </section>
+
+    <!-- 右欄：凱萊狀態圖 + 貼紙展開投影 -->
+    <section class="card canvas-card mobile-tab-view" id="col-right">
+      <div class="card-title">
+        <span>局部凱萊狀態圖 (Cayley Graph)</span>
+        <small style="font-size:0.72rem;color:var(--muted)">力導向拓撲佈局 · 可拖拽節點</small>
+      </div>
+      <div class="canvas-wrap">
+        <canvas id="graphCanvas"></canvas>
+      </div>
+
+      <div class="card-title" style="margin-top:4px">
+        <span>54 貼紙展開軌道 (Permutation Ring)</span>
+        <small id="projHint" style="font-size:0.72rem;color:var(--accent)">等候轉動</small>
+      </div>
+      <div class="canvas-wrap" style="height:180px">
+        <canvas id="projCanvas"></canvas>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- 經典群論公式 Drawer -->
+<div class="modal-backdrop" id="presetModal">
+  <div class="modal-sheet">
+    <div class="sheet-title">
+      <span>經典群論循環公式</span>
+      <button class="btn-icon" id="closeModal">✕</button>
+    </div>
+    <div style="display:grid;gap:6px;margin-top:6px;">
+      <button class="preset-item" data-preset="u4">U⁴ = I (單面 4 階恆等閉環)</button>
+      <button class="preset-item" data-preset="sexy">(R U R′ U′)⁶ = I (性感公式 6 階循環閉環)</button>
+      <button class="preset-item" data-preset="checker">棋盤紋態 (M2 E2 S2 換心置換)</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(()=>{
+  const $ = id => document.getElementById(id);
+  const COLORS = { U:'#fdfefe', D:'#ffd400', F:'#10b981', B:'#2563eb', R:'#ef4444', L:'#f97316' };
+  const MOVES = ['U','U′','D','D′','L','L′','R','R′','F','F′','B','B′'];
+  const FACES = ['U','R','F','D','L','B'];
+
+  function haptic(ms = 12) {
+    if ('vibrate' in navigator) { try { navigator.vibrate(ms); } catch (e) {} }
+  }
+
+  // 1. 三維旋轉運算與 54 貼紙拓撲
+  const I = () => [[1,0,0],[0,1,0],[0,0,1]];
+  const mul = (a, b) => a.map(r => b[0].map((_, j) => r[0]*b[0][j] + r[1]*b[1][j] + r[2]*b[2][j]));
+  const mv = (a, v) => [
+    Math.round(a[0][0]*v[0] + a[0][1]*v[1] + a[0][2]*v[2]),
+    Math.round(a[1][0]*v[0] + a[1][1]*v[1] + a[1][2]*v[2]),
+    Math.round(a[2][0]*v[0] + a[2][1]*v[1] + a[2][2]*v[2])
+  ];
+  function rotMatrix(axis, d) {
+    if (axis === 'x') return [[1,0,0],[0,0,-d],[0,d,0]];
+    if (axis === 'y') return [[0,0,d],[0,1,0],[-d,0,0]];
+    return [[0,-d,0],[d,0,0],[0,0,1]];
+  }
+  function toMatrix3d(R, p) {
+    const g = 45, tx = p[0]*g, ty = p[1]*g, tz = p[2]*g;
+    return `matrix3d(${R[0][0]},${R[1][0]},${R[2][0]},0,${R[0][1]},${R[1][1]},${R[2][1]},0,${R[0][2]},${R[1][2]},${R[2][2]},0,${tx},${ty},${tz},1)`;
+  }
+  function getSlotIdx(face, x, y, z) {
+    if (face==='F') return (y+1)*3 + (x+1);
+    if (face==='B') return (y+1)*3 + (1-x);
+    if (face==='R') return (y+1)*3 + (1-z);
+    if (face==='L') return (y+1)*3 + (z+1);
+    if (face==='U') return (z+1)*3 + (x+1);
+    return (1-z)*3 + (x+1);
+  }
+
+  const slots = {}, slotLookup = new Map();
+  function addSlot(face, i, p, n) {
+    const id = face + i;
+    slots[id] = { id, face, idx: i, p, n };
+    slotLookup.set([...p, ...n].join(','), id);
+  }
+  for (let x = -1; x <= 1; x++) {
+    for (let y = -1; y <= 1; y++) {
+      for (let z = -1; z <= 1; z++) {
+        if (z === 1)  addSlot('F', getSlotIdx('F', x, y, z), [x, y, z], [0, 0, 1]);
+        if (z === -1) addSlot('B', getSlotIdx('B', x, y, z), [x, y, z], [0, 0, -1]);
+        if (x === 1)  addSlot('R', getSlotIdx('R', x, y, z), [x, y, z], [1, 0, 0]);
+        if (x === -1) addSlot('L', getSlotIdx('L', x, y, z), [x, y, z], [-1, 0, 0]);
+        if (y === -1) addSlot('U', getSlotIdx('U', x, y, z), [x, y, z], [0, -1, 0]);
+        if (y === 1)  addSlot('D', getSlotIdx('D', x, y, z), [x, y, z], [0, 1, 0]);
+      }
+    }
+  }
+  const slotList = Object.keys(slots).sort();
+  const specs = {
+    U: ['y', -1, -1], D: ['y', 1, 1],
+    L: ['x', -1, 1],  R: ['x', 1, -1],
+    F: ['z', 1, 1],   B: ['z', -1, -1]
+  };
+
+  function getMovePermutation(move) {
+    const base = move[0], [axis, layer, clock] = specs[base];
+    const isPrime = move.includes('′');
+    const dir = isPrime ? -clock : clock;
+    const R = rotMatrix(axis, dir);
+    const axIdx = { x:0, y:1, z:2 }[axis];
+
+    return Object.values(slots).filter(s => s.p[axIdx] === layer).map(s => {
+      const np = mv(R, s.p), nn = mv(R, s.n);
+      const dst = slotLookup.get([...np, ...nn].join(','));
+      return [s.id, dst];
+    });
+  }
+
+  // 2. 狀態管理
+  let cubies = [];
+  let stickerState = {};
+  function initStickerState() {
+    stickerState = Object.fromEntries(FACES.flatMap(f => Array.from({length:9}, (_, i) => [f+i, COLORS[f]])));
+  }
+  function getStateKey(state = stickerState) {
+    return slotList.map(id => state[id]).join('');
+  }
+  const SOLVED_KEY = (() => { initStickerState(); return getStateKey(); })();
+
+  function build3DCube() {
+    const root = $('cube');
+    const guides = root.querySelector('.guides-layer');
+    root.innerHTML = '';
+    if (guides) root.appendChild(guides);
+
+    cubies = [];
+    for (let x = -1; x <= 1; x++) {
+      for (let y = -1; y <= 1; y++) {
+        for (let z = -1; z <= 1; z++) {
+          if (x===0 && y===0 && z===0) continue;
+          const e = document.createElement('div');
+          e.className = 'cubie';
+          let s = '';
+
+          const isCenterF = (x===0 && y===0 && z===1);
+          const isCenterB = (x===0 && y===0 && z===-1);
+          const isCenterR = (x===1 && y===0 && z===0);
+          const isCenterL = (x===-1 && y===0 && z===0);
+          const isCenterU = (x===0 && y===-1 && z===0);
+          const isCenterD = (x===0 && y===1 && z===0);
+
+          if (z === 1)  s += `<i class="sticker sf" style="background:${COLORS.F}">${isCenterF?'<span class="center-label">F</span>':''}</i>`;
+          if (z === -1) s += `<i class="sticker sb" style="background:${COLORS.B}">${isCenterB?'<span class="center-label">B</span>':''}</i>`;
+          if (x === 1)  s += `<i class="sticker sr" style="background:${COLORS.R}">${isCenterR?'<span class="center-label">R</span>':''}</i>`;
+          if (x === -1) s += `<i class="sticker sl" style="background:${COLORS.L}">${isCenterL?'<span class="center-label">L</span>':''}</i>`;
+          if (y === -1) s += `<i class="sticker su" style="background:${COLORS.U}">${isCenterU?'<span class="center-label">U</span>':''}</i>`;
+          if (y === 1)  s += `<i class="sticker sd" style="background:${COLORS.D}">${isCenterD?'<span class="center-label">D</span>':''}</i>`;
+
+          e.innerHTML = `<span class="cubie-core"></span>${s}`;
+          const c = { e, p: [x,y,z], o: I() };
+          e.style.transform = toMatrix3d(c.o, c.p);
+          root.appendChild(e);
+          cubies.push(c);
+        }
+      }
+    }
+  }
+
+  // 3. 視角姿態與常向廣告牌補償
+  const HOME_RX = -24, HOME_RY = 36;
+  let rx = HOME_RX, ry = HOME_RY;
+
+  function updateViewAndBillboards() {
+    const cube = $('cube');
+    cube.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg)`;
+    cube.style.setProperty('--rx', rx + 'deg');
+    cube.style.setProperty('--ry', ry + 'deg');
+
+    const rxRad = rx * Math.PI / 180, ryRad = ry * Math.PI / 180;
+    const cx = Math.cos(rxRad), sx = Math.sin(rxRad);
+    const cy = Math.cos(ryRad), sy = Math.sin(ryRad);
+
+    const faceNormals = {
+      F: [0, 0, 1], B: [0, 0, -1],
+      R: [1, 0, 0], L: [-1, 0, 0],
+      U: [0, -1, 0], D: [0, 1, 0]
+    };
+
+    for (const [f, [x, y, z]] of Object.entries(faceNormals)) {
+      const zw = -x * cx * sy + y * sx + z * cx * cy;
+      const pin = $(`pin-${f.toLowerCase()}`);
+      if (!pin) continue;
+      if (zw > 0.08) {
+        pin.classList.add('is-front'); pin.classList.remove('is-back');
+      } else {
+        pin.classList.add('is-back'); pin.classList.remove('is-front');
+      }
+    }
+  }
+
+  // 4. 陀螺儀彈簧自動回正引擎
+  let autoSpringEnabled = true;
+  let springAnimId = null;
+
+  function springBackToHome() {
+    if (springAnimId) cancelAnimationFrame(springAnimId);
+    const startRx = rx, startRy = ry;
+    const targetRx = HOME_RX, targetRy = HOME_RY;
+    const startTime = performance.now();
+    const duration = 360;
+
+    function step(now) {
+      if (isDragging) return;
+      const elapsed = now - startTime;
+      const t = Math.min(1, elapsed / duration);
+      const ease = 1 - Math.pow(1 - t, 3);
+      rx = startRx + (targetRx - startRx) * ease;
+      ry = startRy + (targetRy - startRy) * ease;
+      updateViewAndBillboards();
+
+      if (t < 1) {
+        springAnimId = requestAnimationFrame(step);
+      } else {
+        rx = targetRx; ry = targetRy;
+        updateViewAndBillboards();
+        springAnimId = null;
+      }
+    }
+    springAnimId = requestAnimationFrame(step);
+  }
+
+  // 5. 凱萊圖拓撲
+  let graphNodes = new Map();
+  let graphEdges = [];
+  let currentNodeKey = SOLVED_KEY;
+  let moveHistory = [];
+  let cycleCount = 0;
+
+  function resetGraph() {
+    graphNodes.clear();
+    graphEdges = [];
+    cycleCount = 0;
+    graphNodes.set(SOLVED_KEY, {
+      id: 0, key: SOLVED_KEY, label: 'S₀', depth: 0,
+      x: 0, y: 0, vx: 0, vy: 0, isSolved: true
+    });
+    currentNodeKey = SOLVED_KEY;
+    moveHistory = [];
+  }
+
+  function analyzeCycles(pairs) {
+    const map = new Map(pairs);
+    const visited = new Set();
+    const cycles = [];
+    for (const [src] of pairs) {
+      if (!visited.has(src)) {
+        const curCycle = [];
+        let cur = src;
+        while (!visited.has(cur)) {
+          visited.add(cur);
+          curCycle.push(cur);
+          cur = map.get(cur);
+        }
+        if (curCycle.length > 1) cycles.push(curCycle);
+      }
+    }
+    const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
+    const lcm = (a, b) => (a * b) / gcd(a, b);
+    const order = cycles.reduce((acc, c) => lcm(acc, c.length), 1);
+    return { cycles, order };
+  }
+
+  // 6. 轉動排程
+  let isBusy = false;
+  async function applyMove(move, record = true, duration = 200) {
+    if (isBusy) return false;
+    isBusy = true;
+    haptic(15);
+
+    const base = move[0], [axis, layer, clock] = specs[base];
+    const isPrime = move.includes('′');
+    const dir = isPrime ? -clock : clock;
+    const R = rotMatrix(axis, dir);
+    const axIdx = { x:0, y:1, z:2 }[axis];
+
+    const pairs = getMovePermutation(move);
+    const { cycles, order } = analyzeCycles(pairs);
+    $('orderVal').textContent = order;
+    $('projHint').textContent = `${move} 產生 ${cycles.length} 個輪換 · 階數 ${order}`;
+
+    startProjectionAnimation(pairs, duration);
+
+    const selected = cubies.filter(c => c.p[axIdx] === layer);
+    const animPromises = selected.map(c => {
+      const nextO = mul(R, c.o);
+      const nextP = mv(R, c.p);
+      const from = toMatrix3d(c.o, c.p);
+      const to = toMatrix3d(nextO, nextP);
+      const anim = c.e.animate([{ transform: from }, { transform: to }], {
+        duration, easing: 'cubic-bezier(0.2, 0.85, 0.25, 1)', fill: 'forwards'
+      });
+      return anim.finished.then(() => {
+        c.p = nextP;
+        c.o = nextO;
+        c.e.style.transform = to;
+        anim.cancel();
+      });
+    });
+
+    await Promise.all(animPromises);
+
+    const prevState = { ...stickerState };
+    pairs.forEach(([src, dst]) => { stickerState[dst] = prevState[src]; });
+    const nextKey = getStateKey();
+
+    if (record) {
+      moveHistory.push(move);
+      let targetNode = graphNodes.get(nextKey);
+      let isNewCycle = false;
+
+      if (!targetNode) {
+        targetNode = {
+          id: graphNodes.size, key: nextKey,
+          label: nextKey === SOLVED_KEY ? 'S₀' : `S${graphNodes.size}`,
+          depth: moveHistory.length,
+          x: (graphNodes.get(currentNodeKey)?.x || 0) + (Math.random() - 0.5) * 45,
+          y: (graphNodes.get(currentNodeKey)?.y || 0) + (Math.random() - 0.5) * 45,
+          vx: 0, vy: 0, isSolved: nextKey === SOLVED_KEY
+        };
+        graphNodes.set(nextKey, targetNode);
+      } else {
+        isNewCycle = true;
+        cycleCount++;
+        $('cyclesVal').textContent = cycleCount;
+      }
+
+      graphEdges.push({ from: currentNodeKey, to: nextKey, move, isCycle: isNewCycle });
+      currentNodeKey = nextKey;
+    }
+
+    isBusy = false;
+    updateUI();
+    return true;
+  }
+
+  function inverseMove(m) { return m.includes('′') ? m[0] : m + '′'; }
+
+  function solveBFS() {
+    if (currentNodeKey === SOLVED_KEY) return [];
+    const queue = [[currentNodeKey, []]];
+    const visited = new Set([currentNodeKey]);
+    let graphSolution = null;
+
+    const adj = new Map();
+    for (const edge of graphEdges) {
+      if (!adj.has(edge.from)) adj.set(edge.from, []);
+      adj.get(edge.from).push({ to: edge.to, move: edge.move });
+      if (!adj.has(edge.to)) adj.set(edge.to, []);
+      adj.get(edge.to).push({ to: edge.from, move: inverseMove(edge.move) });
+    }
+
+    while (queue.length > 0) {
+      const [k, path] = queue.shift();
+      if (k === SOLVED_KEY) {
+        graphSolution = path;
+        break;
+      }
+      for (const next of (adj.get(k) || [])) {
+        if (!visited.has(next.to)) {
+          visited.add(next.to);
+          queue.push([next.to, [...path, next.move]]);
+        }
+      }
+    }
+    return graphSolution && graphSolution.length > 0 ? graphSolution : moveHistory.slice().reverse().map(inverseMove);
+  }
+
+  // 7. 畫布渲染
+  const graphCanvas = $('graphCanvas'), gctx = graphCanvas.getContext('2d');
+  let draggedNode = null;
+
+  function resizeCanvas(c, ctx) {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = c.clientWidth, h = c.clientHeight;
+    if (c.width !== w * dpr || c.height !== h * dpr) {
+      c.width = w * dpr; c.height = h * dpr;
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { w, h };
+  }
+
+  function renderGraph() {
+    const { w, h } = resizeCanvas(graphCanvas, gctx);
+    const nodes = Array.from(graphNodes.values());
+
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const a = nodes[i], b = nodes[j];
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const dist = Math.hypot(dx, dy) || 1;
+        const force = 1800 / (dist * dist);
+        const fx = (dx / dist) * force, fy = (dy / dist) * force;
+        if (a !== draggedNode && !a.isSolved) { a.vx -= fx; a.vy -= fy; }
+        if (b !== draggedNode && !b.isSolved) { b.vx += fx; b.vy += fy; }
+      }
+    }
+    for (const edge of graphEdges) {
+      const a = graphNodes.get(edge.from), b = graphNodes.get(edge.to);
+      if (!a || !b) continue;
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      const force = (dist - 55) * 0.05;
+      const fx = (dx / dist) * force, fy = (dy / dist) * force;
+      if (a !== draggedNode && !a.isSolved) { a.vx -= fx; a.vy -= fy; }
+      if (b !== draggedNode && !b.isSolved) { b.vx += fx; b.vy += fy; }
+    }
+    for (const n of nodes) {
+      if (n.isSolved) { n.x = 0; n.y = 0; continue; }
+      if (n === draggedNode) continue;
+      n.vx -= n.x * 0.025; n.vy -= n.y * 0.025;
+      n.vx *= 0.8; n.vy *= 0.8;
+      n.x += n.vx; n.y += n.vy;
+    }
+
+    gctx.clearRect(0, 0, w, h);
+    gctx.save();
+    gctx.translate(w / 2, h / 2);
+
+    for (const edge of graphEdges) {
+      const a = graphNodes.get(edge.from), b = graphNodes.get(edge.to);
+      if (!a || !b) continue;
+      gctx.beginPath();
+      gctx.moveTo(a.x, a.y);
+      gctx.lineTo(b.x, b.y);
+      gctx.strokeStyle = edge.isCycle ? 'rgba(255,159,67,0.5)' : 'rgba(97,218,251,0.25)';
+      gctx.lineWidth = edge.isCycle ? 2 : 1.2;
+      gctx.stroke();
+    }
+
+    for (const n of nodes) {
+      const isCur = n.key === currentNodeKey;
+      gctx.beginPath();
+      gctx.arc(n.x, n.y, isCur ? 9 : (n.isSolved ? 7 : 5), 0, Math.PI * 2);
+      gctx.fillStyle = n.isSolved ? '#35d39a' : (isCur ? '#61dafb' : '#415b76');
+      gctx.fill();
+      gctx.strokeStyle = isCur ? '#ffffff' : '#07101d';
+      gctx.lineWidth = 1.5;
+      gctx.stroke();
+
+      gctx.fillStyle = '#d2e3f3';
+      gctx.font = '9px system-ui';
+      gctx.fillText(n.label, n.x + 8, n.y - 6);
+    }
+    gctx.restore();
+    requestAnimationFrame(renderGraph);
+  }
+
+  // 貼紙投影
+  const projCanvas = $('projCanvas'), pctx = projCanvas.getContext('2d');
+  let animState = null;
+  function getUnfoldedPositions(w, h) {
+    const cx = w / 2, cy = h / 2, s = Math.min(w, h) * 0.09;
+    const offsets = { U:[0,-1.15], L:[-1.15,0], F:[0,0], R:[1.15,0], B:[2.3,0], D:[0,1.15] };
+    const out = {};
+    for (const f of FACES) {
+      const [ox, oy] = offsets[f], fcx = cx + ox * (s * 3.1), fcy = cy + oy * (s * 3.1);
+      for (let i = 0; i < 9; i++) {
+        const row = Math.floor(i / 3) - 1, col = (i % 3) - 1;
+        out[f + i] = { x: fcx + col * s, y: fcy + row * s };
+      }
+    }
+    return out;
+  }
+  function startProjectionAnimation(pairs, duration) { animState = { pairs, duration, start: performance.now() }; }
+  function renderProjection() {
+    const { w, h } = resizeCanvas(projCanvas, pctx);
+    pctx.clearRect(0, 0, w, h);
+    const pos = getUnfoldedPositions(w, h);
+    for (const f of FACES) {
+      for (let i = 0; i < 9; i++) {
+        const p = pos[f + i];
+        pctx.beginPath();
+        pctx.arc(p.x, p.y, 3.5, 0, Math.PI * 2);
+        pctx.fillStyle = stickerState[f + i];
+        pctx.fill();
+        pctx.stroke();
+      }
+    }
+    if (animState) {
+      const progress = Math.min(1, (performance.now() - animState.start) / animState.duration);
+      const t = 1 - Math.pow(1 - progress, 3);
+      for (const [src, dst] of animState.pairs) {
+        const p1 = pos[src], p2 = pos[dst];
+        if (!p1 || !p2) continue;
+        const mx = (p1.x + p2.x) / 2 + (p2.y - p1.y) * 0.25;
+        const my = (p1.y + p2.y) / 2 - (p2.x - p1.x) * 0.25;
+        pctx.beginPath();
+        pctx.moveTo(p1.x, p1.y);
+        pctx.quadraticCurveTo(mx, my, p2.x, p2.y);
+        pctx.strokeStyle = 'rgba(97,218,251,0.35)';
+        pctx.stroke();
+        const qx = (1-t)*(1-t)*p1.x + 2*(1-t)*t*mx + t*t*p2.x;
+        const qy = (1-t)*(1-t)*p1.y + 2*(1-t)*t*my + t*t*p2.y;
+        pctx.beginPath();
+        pctx.arc(qx, qy, 4, 0, Math.PI * 2);
+        pctx.fillStyle = stickerState[src];
+        pctx.fill();
+        pctx.strokeStyle = '#61dafb';
+        pctx.stroke();
+      }
+      if (progress >= 1) animState = null;
+    }
+    requestAnimationFrame(renderProjection);
+  }
+
+  function updateUI() {
+    $('depthVal').textContent = moveHistory.length;
+    $('nodesVal').textContent = graphNodes.size;
+  }
+
+  // 8. 觸控 / 滑鼠 雙模事件綁定
+  let isDragging = false, lastX = 0, lastY = 0;
+  const stage = $('cubeStage');
+
+  stage.addEventListener('pointerdown', e => {
+    isDragging = true;
+    if (springAnimId) cancelAnimationFrame(springAnimId);
+    lastX = e.clientX; lastY = e.clientY;
+    stage.setPointerCapture(e.pointerId);
+  });
+
+  stage.addEventListener('pointermove', e => {
+    if (!isDragging) return;
+    ry += (e.clientX - lastX) * 0.55;
+    rx -= (e.clientY - lastY) * 0.55;
+    lastX = e.clientX; lastY = e.clientY;
+    updateViewAndBillboards();
+  });
+
+  const onPointerRelease = () => {
+    if (!isDragging) return;
+    isDragging = false;
+    if (autoSpringEnabled) springBackToHome();
+  };
+
+  stage.addEventListener('pointerup', onPointerRelease);
+  stage.addEventListener('pointercancel', onPointerRelease);
+  stage.addEventListener('dblclick', () => { springBackToHome(); haptic(20); });
+
+  // 拓撲節點拖拽
+  graphCanvas.addEventListener('pointerdown', e => {
+    const rect = graphCanvas.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) - graphCanvas.clientWidth / 2;
+    const my = (e.clientY - rect.top) - graphCanvas.clientHeight / 2;
+    for (const n of graphNodes.values()) {
+      if (Math.hypot(n.x - mx, n.y - my) < 18) {
+        draggedNode = n;
+        graphCanvas.setPointerCapture(e.pointerId);
+        break;
+      }
+    }
+  });
+  graphCanvas.addEventListener('pointermove', e => {
+    if (!draggedNode) return;
+    const rect = graphCanvas.getBoundingClientRect();
+    draggedNode.x = (e.clientX - rect.left) - graphCanvas.clientWidth / 2;
+    draggedNode.y = (e.clientY - rect.top) - graphCanvas.clientHeight / 2;
+  });
+  const endGraphDrag = () => { draggedNode = null; };
+  graphCanvas.addEventListener('pointerup', endGraphDrag);
+  graphCanvas.addEventListener('pointercancel', endGraphDrag);
+
+  // 回正開關
+  $('toggleSpring').onclick = () => {
+    autoSpringEnabled = !autoSpringEnabled;
+    $('toggleSpring').classList.toggle('active', autoSpringEnabled);$('toggleSpring').textContent = autoSpringEnabled ? '🧲 自動回正: 開' : '🔓 自由檢視';
+    $('springHud').querySelector('span').textContent = autoSpringEnabled
+      ? '陀螺儀回正啟用中（鬆手自動彈回）'
+      : '自由角度模式（手動拖動）';
+    haptic(10);
+  };
+
+  // 空間羅盤操作
+  document.querySelectorAll('.dpad-btn').forEach(btn => {
+    btn.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      applyMove(btn.dataset.move);
+    });
+  });
+
+  // 桌機鍵盤快捷鍵支援
+  window.addEventListener('keydown', e => {
+    if (isBusy) return;
+    const key = e.key.toUpperCase();
+    if (['U','D','L','R','F','B'].includes(key)) {
+      applyMove(e.shiftKey ? key + '′' : key);
+    }
+  });
+
+  // 功能按鍵
+  $('scrambleBtn').addEventListener('pointerdown', async e => {
+    e.preventDefault();
+    if (isBusy) return;
+    for (let i = 0; i < 6; i++) {
+      const randMove = MOVES[Math.floor(Math.random() * MOVES.length)];
+      await applyMove(randMove, true, 130);
+    }
+  });
+
+  $('undoBtn').addEventListener('pointerdown', async e => {
+    e.preventDefault();
+    if (isBusy || moveHistory.length === 0) return;
+    const last = moveHistory.pop();
+    await applyMove(inverseMove(last), false, 150);
+    currentNodeKey = getStateKey();
+    updateUI();
+  });
+
+  $('solveBtn').addEventListener('pointerdown', async e => {
+    e.preventDefault();
+    if (isBusy) return;
+    const solution = solveBFS();
+    if (solution.length === 0) return;
+    for (const m of solution) await applyMove(m, false, 160);
+    moveHistory = [];
+    currentNodeKey = SOLVED_KEY;
+    updateUI();
+  });
+
+  $('resetBtn').addEventListener('pointerdown', e => {
+    e.preventDefault();
+    if (isBusy) return;
+    initStickerState();
+    build3DCube();
+    resetGraph();
+    $('orderVal').textContent = 1;
+    $('cyclesVal').textContent = 0;
+    springBackToHome();
+    updateUI();
+  });
+
+  // 手機端 Tab 切換
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.mobile-tab-view').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      $(btn.dataset.tab).classList.add('active');
+      haptic(10);
+    });
+  });
+
+  // 公式 Drawer
+  $('openPresets').onclick = () => $('presetModal').classList.add('open');$('closeModal').onclick = () => $('presetModal').classList.remove('open');$('presetModal').onclick = e => { if (e.target === $('presetModal'))$('presetModal').classList.remove('open'); };
+
+  document.querySelectorAll('.preset-item').forEach(item => {
+    item.onclick = async () => {
+      $('presetModal').classList.remove('open');
+      if (isBusy) return;
+      const type = item.dataset.preset;
+      if (type === 'u4') {
+        for (let i = 0; i < 4; i++) await applyMove('U', true, 150);
+      } else if (type === 'sexy') {
+        const seq = ['R','U','R′','U′'];
+        for (let l = 0; l < 6; l++) {
+          for (const m of seq) await applyMove(m, true, 110);
+        }
+      } else if (type === 'checker') {
+        const cb = ['R','R','L','L','U','U','D','D','F','F','B','B'];
+        for (const m of cb) await applyMove(m, true, 110);
+      }
+    };
+  });
+
+  // 初始化啟動
+  initStickerState();
+  build3DCube();
+  resetGraph();
+  updateUI();
+  updateViewAndBillboards();
+  renderGraph();
+  renderProjection();
+})();
+</script>
+</body>
+</html>
