@@ -990,7 +990,8 @@
   const projCanvas = $('projCanvas'), pctx = projCanvas.getContext('2d');
   let animState = null;
   function getUnfoldedPositions(w, h) {
-    const cx = w / 2, cy = h / 2, s = Math.min(w, h) * 0.09;
+    // 展開圖寬約 12.7s、高約 9.1s，且整體偏右 1.78s：依兩個方向取較小尺寸並置中
+    const s = Math.min(w / 13.5, h / 10), cx = w / 2 - 1.78 * s, cy = h / 2;
     const offsets = { U:[0,-1.15], L:[-1.15,0], F:[0,0], R:[1.15,0], B:[2.3,0], D:[0,1.15] };
     const out = {};
     for (const f of FACES) {
