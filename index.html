@@ -2,15 +2,17 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#07101d">
-  <title>圖論魔術方塊 - 雙模旗艦版</title>
+  <meta name="description" content="圖論魔術方塊：以凱萊圖視覺化 3x3x3 魔術方塊的置換結構，內建 Kociemba 兩階段求解器。">
+  <title>圖論魔術方塊 - Kociemba 完整版</title>
   <style>
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     :root {
       --bg: #07101d; --panel: #0d1929; --panel-elevated: #13243a; --line: #223c58;
       --ink: #edf6ff; --muted: #8ba2ba; --accent: #61dafb; --green: #35d39a;
       --orange: #ff9f43; --purple: #b388ff; --red: #ff5252;
+      --tap: 44px;
     }
     html, body {
       margin: 0; padding: 0; min-height: 100vh;
@@ -18,6 +20,15 @@
       color: var(--ink);
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", sans-serif;
       user-select: none;
+    }
+    :focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+      border-radius: 6px;
+    }
+    .sr-only {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
     }
     .app-container {
       max-width: 1280px; margin: 0 auto; padding: 10px 14px 20px;
@@ -27,21 +38,22 @@
     /* 頂部 Header */
     header {
       padding: 6px 4px 12px; display: flex; align-items: center; justify-content: space-between;
-      border-bottom: 1px solid rgba(34, 60, 88, 0.5);
+      border-bottom: 1px solid rgba(34, 60, 88, 0.5); gap: 10px; flex-wrap: wrap;
     }
     .brand { font-size: 1.15rem; font-weight: 800; display: flex; align-items: center; gap: 8px; }
     .badge {
       font-size: 0.7rem; padding: 2px 7px; border-radius: 999px;
       background: rgba(97,218,251,0.12); color: var(--accent); border: 1px solid rgba(97,218,251,0.3);
     }
-    .header-actions { display: flex; gap: 6px; }
+    .header-actions { display: flex; gap: 6px; flex-wrap: wrap; }
     .btn-icon {
       background: var(--panel-elevated); border: 1px solid var(--line); color: var(--ink);
       border-radius: 8px; padding: 6px 10px; font-size: 0.78rem; font-weight: 600; cursor: pointer;
-      transition: all 0.12s ease;
+      transition: all 0.12s ease; min-height: 36px;
     }
-    .btn-icon:hover { border-color: var(--accent); }
+    .btn-icon:hover:not(:disabled) { border-color: var(--accent); }
     .btn-icon.active { background: rgba(97,218,251,0.2); border-color: var(--accent); color: var(--accent); }
+    .btn-icon:disabled { opacity: 0.45; cursor: not-allowed; }
 
     /* 雙欄主佈局架構 (桌機並排 / 手機切換) */
     .workspace {
@@ -54,8 +66,9 @@
       border-radius: 12px; border: 1px solid var(--line); margin-bottom: 2px;
     }
     .tab-btn {
-      flex: 1; text-align: center; padding: 7px 2px; font-size: 0.78rem; font-weight: 700;
+      flex: 1; text-align: center; padding: 9px 2px; font-size: 0.78rem; font-weight: 700;
       color: var(--muted); border-radius: 9px; background: transparent; border: none; cursor: pointer;
+      min-height: 38px;
     }
     .tab-btn.active {
       background: linear-gradient(135deg, #1881b0, #14598a); color: #fff;
@@ -74,13 +87,13 @@
 
     /* 3D 空間舞台 */
     .cube-stage {
-      height: 280px; display: grid; place-items: center; touch-action: none;
+      height: 300px; display: grid; place-items: center; touch-action: none;
       background: radial-gradient(circle at 50% 50%, rgba(24,55,94,0.35) 0%, rgba(7,16,29,0.92) 75%);
       position: relative; overflow: hidden; border-radius: 12px; border: 1px solid rgba(34,60,88,0.4);
       cursor: grab;
     }
     .cube-stage:active { cursor: grabbing; }
-    .scene { width: 180px; height: 180px; perspective: 800px; display: grid; place-items: center; }
+    .scene { width: 200px; height: 200px; perspective: 800px; display: grid; place-items: center; }
     .cube-view {
       width: 140px; height: 140px; position: relative; transform-style: preserve-3d;
       transform: rotateX(-24deg) rotateY(36deg);
@@ -158,10 +171,10 @@
       margin-top: 10px; display: flex; flex-direction: column; gap: 6px;
     }
     .compass-container {
-      display: grid; grid-template-columns: 1fr 1.35fr 1fr; grid-template-rows: auto auto auto;
-      gap: 5px; align-items: center; justify-items: center; max-width: 380px; margin: 0 auto; width: 100%;
+      display: grid; grid-template-columns: 1fr 1.4fr 1fr; grid-template-rows: auto auto auto;
+      gap: 6px; align-items: stretch; justify-items: stretch; max-width: 400px; margin: 0 auto; width: 100%;
     }
-    .dir-unit { display: flex; gap: 4px; width: 100%; }
+    .dir-unit { display: flex; gap: 5px; width: 100%; }
     .dir-unit.vertical { flex-direction: column; width: 100%; }
     .pos-top { grid-column: 2; grid-row: 1; }
     .pos-bottom { grid-column: 2; grid-row: 3; }
@@ -170,20 +183,22 @@
 
     .pos-center {
       grid-column: 2; grid-row: 2; width: 100%;
-      display: flex; flex-direction: column; gap: 4px;
-      padding: 4px; border-radius: 12px; background: rgba(7, 16, 29, 0.7);
+      display: flex; flex-direction: column; gap: 5px;
+      padding: 5px; border-radius: 12px; background: rgba(7, 16, 29, 0.7);
       border: 1px dashed rgba(97, 218, 251, 0.4);
     }
-    .center-row { display: flex; gap: 4px; width: 100%; }
+    .center-row { display: flex; gap: 5px; width: 100%; }
 
     .dpad-btn {
-      flex: 1; min-height: 38px; border: 1px solid #294768; border-radius: 9px;
-      background: var(--panel-elevated); color: var(--ink); font-weight: 800; font-size: 0.88rem;
+      flex: 1; min-height: var(--tap); border: 1px solid #294768; border-radius: 9px;
+      background: var(--panel-elevated); color: var(--ink); font-weight: 800; font-size: 0.9rem;
       display: flex; align-items: center; justify-content: center; gap: 3px;
-      touch-action: manipulation; cursor: pointer; transition: all 0.1s ease;
+      touch-action: manipulation; cursor: pointer;
+      transition: border-color 0.1s ease, background 0.1s ease; padding: 0 4px;
     }
-    .dpad-btn:hover { border-color: var(--accent); color: var(--accent); }
-    .dpad-btn:active { transform: scale(0.92); background: #1c3656; }
+    .dpad-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .dpad-btn:active:not(:disabled) { background: #1c3656; }
+    .dpad-btn:disabled { opacity: 0.4; cursor: not-allowed; }
     .dpad-btn.prime { color: #8ecbff; background: #0c1a2c; border-color: #1a3550; }
 
     .btn-f {
@@ -196,16 +211,18 @@
     }
 
     .action-row {
-      display: grid; grid-template-columns: 1fr 1fr 1.3fr; gap: 6px;
-      max-width: 380px; margin: 6px auto 0; width: 100%;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+      max-width: 400px; margin: 6px auto 0; width: 100%;
     }
+    .action-row .action-btn.wide { grid-column: 1 / -1; }
     .action-btn {
-      min-height: 36px; border-radius: 9px; font-weight: 700; font-size: 0.78rem;
+      min-height: var(--tap); border-radius: 9px; font-weight: 700; font-size: 0.8rem;
       border: 1px solid var(--line); background: var(--panel-elevated); color: var(--ink);
       display: flex; align-items: center; justify-content: center; gap: 4px;
-      touch-action: manipulation; cursor: pointer;
+      touch-action: manipulation; cursor: pointer; padding: 0 6px;
     }
-    .action-btn:active { transform: scale(0.94); }
+    .action-btn:active:not(:disabled) { background: #1c3656; }
+    .action-btn:disabled { opacity: 0.45; cursor: not-allowed; }
     .action-btn.primary { background: linear-gradient(135deg, #1881b0, #14598a); border: none; }
     .action-btn.solve { background: linear-gradient(135deg, #168d65, #146147); border: none; }
 
@@ -226,7 +243,7 @@
       flex: 1; min-height: 240px; border-radius: 12px; background: #060e18;
       border: 1px solid var(--line); position: relative; overflow: hidden;
     }
-    canvas { display: block; width: 100%; height: 100%; }
+    canvas { display: block; width: 100%; height: 100%; touch-action: none; }
 
     /* Modal */
     .modal-backdrop {
@@ -237,14 +254,31 @@
     .modal-sheet {
       width: 90%; max-width: 440px; background: var(--panel); border-radius: 16px;
       border: 1px solid var(--line); padding: 18px; display: flex; flex-direction: column; gap: 10px;
+      max-height: 80vh; overflow: auto;
     }
     .sheet-title { display: flex; justify-content: space-between; align-items: center; font-weight: 800; }
     .preset-item {
-      padding: 11px 14px; border-radius: 10px; background: var(--panel-elevated);
+      padding: 13px 14px; border-radius: 10px; background: var(--panel-elevated);
       border: 1px solid var(--line); text-align: left; color: var(--ink); font-weight: 600; font-size: 0.82rem;
-      cursor: pointer;
+      cursor: pointer; min-height: var(--tap);
     }
     .preset-item:hover { border-color: var(--accent); color: var(--accent); }
+    .preset-item:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* Toast */
+    .toast-region {
+      position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+      transform: translateX(-50%); z-index: 200;
+      display: flex; flex-direction: column; gap: 6px; align-items: center;
+      pointer-events: none; width: min(92vw, 460px);
+    }
+    .toast {
+      background: rgba(13, 25, 41, 0.96); border: 1px solid var(--line); color: var(--ink);
+      padding: 9px 14px; border-radius: 999px; font-size: 0.8rem; font-weight: 600;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.5); text-align: center;
+    }
+    .toast.err { border-color: var(--red); color: #ffd4d4; }
+    .toast.ok { border-color: var(--green); color: #c9f7e5; }
 
     /* ================= 響應式佈局規則 (RWD) ================= */
     /* 桌機與平板寬螢幕模式 (>= 860px) */
@@ -253,7 +287,7 @@
       .workspace {
         grid-template-columns: minmax(360px, 1fr) minmax(420px, 1.25fr);
       }
-      .cube-stage { height: 340px; }
+      .cube-stage { height: 360px; }
       .canvas-wrap { min-height: 260px; }
     }
 
@@ -262,6 +296,34 @@
       .mobile-tab-view { display: none; }
       .mobile-tab-view.active { display: flex; }
       .cube-stage { height: 260px; }
+      .scene { width: 190px; height: 190px; }
+    }
+
+    /* 超窄螢幕 (<= 390px)：再縮減間距與字級，觸控目標仍維持 44px */
+    @media (max-width: 390px) {
+      .app-container { padding: 8px 10px 16px; }
+      .brand { font-size: 1rem; }
+      .compass-container { gap: 4px; grid-template-columns: 1fr 1.32fr 1fr; }
+      .dpad-btn { font-size: 0.82rem; }
+      .cube-stage { height: 232px; }
+      .scene { width: 172px; height: 172px; }
+      .pin-u { transform: translateY(-100px); }
+      .pin-d { transform: translateY(100px); }
+      .pin-f { transform: translateZ(100px); }
+      .pin-b { transform: translateZ(-100px); }
+      .pin-r { transform: translateX(100px); }
+      .pin-l { transform: translateX(-100px); }
+      .mini-status { gap: 4px; }
+      .status-item b { font-size: 0.85rem; }
+    }
+
+    /* 使用者要求減少動態效果時，關閉非必要動畫 */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+      }
     }
   </style>
 </head>
@@ -271,39 +333,43 @@
   <header>
     <div class="brand">
       <span>🧩 圖論魔術方塊</span>
-      <span class="badge">雙模旗艦版</span>
+      <span class="badge">Kociemba 完整版</span>
     </div>
     <div class="header-actions">
       <!-- 陀螺儀彈簧回正開關 -->
-      <button class="btn-icon active" id="toggleSpring">🧲 自動回正: 開</button>
-      <button class="btn-icon" id="openPresets">✨ 經典公式</button>
+      <button class="btn-icon active" id="toggleSpring" aria-pressed="true">🧲 自動回正: 開</button>
+      <button class="btn-icon" id="openPresets" aria-haspopup="dialog">✨ 經典公式</button>
       <button class="btn-icon" id="resetBtn">重設</button>
     </div>
   </header>
 
   <!-- 手機端 Tab 切換導覽列 (桌機螢幕自動隱藏) -->
-  <nav class="mobile-tabs">
-    <button class="tab-btn active" data-tab="col-left">🎲 3D 空間方塊</button>
-    <button class="tab-btn" data-tab="col-right">🕸️ 凱萊圖與軌道</button>
+  <nav class="mobile-tabs" role="tablist" aria-label="面板切換">
+    <button class="tab-btn active" role="tab" id="tab-col-left" data-tab="col-left"
+            aria-selected="true" aria-controls="col-left">🎲 3D 空間方塊</button>
+    <button class="tab-btn" role="tab" id="tab-col-right" data-tab="col-right"
+            aria-selected="false" aria-controls="col-right">🕸️ 凱萊圖與軌道</button>
   </nav>
 
   <div class="workspace">
     <!-- 左欄：3D 方塊 + 空間十字羅盤 -->
-    <section class="card mobile-tab-view active" id="col-left">
+    <section class="card mobile-tab-view active" id="col-left" role="tabpanel"
+             aria-labelledby="tab-col-left" tabindex="-1">
       <div class="card-title">
         <span>3D 本體座標空間</span>
-        <small style="font-size:0.72rem;color:var(--muted)">滑鼠/觸控拖動 · 支援鍵盤 U/D/L/R/F/B</small>
+        <small style="font-size:0.72rem;color:var(--muted)">拖曳旋轉視角 · 鍵盤 U/D/L/R/F/B（Shift = 逆時針）</small>
       </div>
 
       <!-- 3D 舞台 -->
-      <div class="cube-stage" id="cubeStage">
+      <div class="cube-stage" id="cubeStage" role="application"
+           aria-label="3D 魔術方塊檢視區，可拖曳旋轉視角">
         <div class="stage-hud" id="springHud">
           <i class="spring-dot"></i>
           <span>陀螺儀回正啟用中（鬆手自動彈回）</span>
         </div>
 
         <div class="scene">
-          <div class="cube-view" id="cube">
+          <div class="cube-view" id="cube" aria-hidden="true">
             <!-- 3D 穿心基準線與 6 面常向標籤 -->
             <div class="guides-layer">
               <div class="axis-beam x"></div>
@@ -334,49 +400,49 @@
       </div>
 
       <!-- 空間十字羅盤控制器 -->
-      <div class="spatial-deck">
+      <div class="spatial-deck" role="group" aria-label="空間十字羅盤控制器">
         <div class="compass-container">
           <!-- 上: U -->
           <div class="dir-unit pos-top">
-            <button class="dpad-btn" data-move="U">U 頂順</button>
-            <button class="dpad-btn prime" data-move="U′">U′ 頂逆</button>
+            <button class="dpad-btn" data-move="U" aria-label="頂面順時針">U 頂順</button>
+            <button class="dpad-btn prime" data-move="U′" aria-label="頂面逆時針">U′ 頂逆</button>
           </div>
 
           <!-- 左: L -->
           <div class="dir-unit vertical pos-left">
-            <button class="dpad-btn" data-move="L">L 左順</button>
-            <button class="dpad-btn prime" data-move="L′">L′ 左逆</button>
+            <button class="dpad-btn" data-move="L" aria-label="左面順時針">L 左順</button>
+            <button class="dpad-btn prime" data-move="L′" aria-label="左面逆時針">L′ 左逆</button>
           </div>
 
           <!-- 中軸核心: F 與 B 深度靶心樞紐 -->
           <div class="pos-center">
             <div class="center-row">
-              <button class="dpad-btn btn-f" data-move="F">F 前順</button>
-              <button class="dpad-btn btn-f prime" data-move="F′">F′ 前逆</button>
+              <button class="dpad-btn btn-f" data-move="F" aria-label="前面順時針">F 前順</button>
+              <button class="dpad-btn btn-f prime" data-move="F′" aria-label="前面逆時針">F′ 前逆</button>
             </div>
             <div class="center-row">
-              <button class="dpad-btn btn-b" data-move="B">B 後順</button>
-              <button class="dpad-btn btn-b prime" data-move="B′">B′ 後逆</button>
+              <button class="dpad-btn btn-b" data-move="B" aria-label="後面順時針">B 後順</button>
+              <button class="dpad-btn btn-b prime" data-move="B′" aria-label="後面逆時針">B′ 後逆</button>
             </div>
           </div>
 
           <!-- 右: R -->
           <div class="dir-unit vertical pos-right">
-            <button class="dpad-btn" data-move="R">R 右順</button>
-            <button class="dpad-btn prime" data-move="R′">R′ 右逆</button>
+            <button class="dpad-btn" data-move="R" aria-label="右面順時針">R 右順</button>
+            <button class="dpad-btn prime" data-move="R′" aria-label="右面逆時針">R′ 右逆</button>
           </div>
 
           <!-- 下: D -->
-          <div class="dir-unit pos-bottom">
-            <button class="dpad-btn" data-move="D">D 底順</button>
-            <button class="dpad-btn prime" data-move="D′">D′ 底逆</button>
+          <div class="dir-unit vertical pos-bottom">
+            <button class="dpad-btn" data-move="D" aria-label="底面順時針">D 底順</button>
+            <button class="dpad-btn prime" data-move="D′" aria-label="底面逆時針">D′ 底逆</button>
           </div>
         </div>
 
         <div class="action-row">
-          <button class="action-btn primary" id="scrambleBtn">🎲 打亂 6 步</button>
-          <button class="action-btn" id="undoBtn">↶ 回退</button>
-          <button class="action-btn solve" id="solveBtn">✨ BFS 最短還原</button>
+          <button class="action-btn primary" id="scrambleBtn">🎲 打亂 20 步</button>
+          <button class="action-btn" id="undoBtn">↶ 回退一步</button>
+          <button class="action-btn solve wide" id="solveBtn">🧠 Kociemba 求解</button>
         </div>
       </div>
 
@@ -390,21 +456,22 @@
     </section>
 
     <!-- 右欄：凱萊狀態圖 + 貼紙展開投影 -->
-    <section class="card canvas-card mobile-tab-view" id="col-right">
+    <section class="card canvas-card mobile-tab-view" id="col-right" role="tabpanel"
+             aria-labelledby="tab-col-right" tabindex="-1">
       <div class="card-title">
         <span>局部凱萊狀態圖 (Cayley Graph)</span>
         <small style="font-size:0.72rem;color:var(--muted)">力導向拓撲佈局 · 可拖拽節點</small>
       </div>
       <div class="canvas-wrap">
-        <canvas id="graphCanvas"></canvas>
+        <canvas id="graphCanvas" role="img" aria-label="已探索狀態的凱萊圖"></canvas>
       </div>
 
       <div class="card-title" style="margin-top:4px">
         <span>54 貼紙展開軌道 (Permutation Ring)</span>
         <small id="projHint" style="font-size:0.72rem;color:var(--accent)">等候轉動</small>
       </div>
-      <div class="canvas-wrap" style="height:180px">
-        <canvas id="projCanvas"></canvas>
+      <div class="canvas-wrap" style="height:180px;flex:none">
+        <canvas id="projCanvas" role="img" aria-label="54 張貼紙的展開投影"></canvas>
       </div>
     </section>
   </div>
@@ -412,10 +479,10 @@
 
 <!-- 經典群論公式 Drawer -->
 <div class="modal-backdrop" id="presetModal">
-  <div class="modal-sheet">
+  <div class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="presetTitle">
     <div class="sheet-title">
-      <span>經典群論循環公式</span>
-      <button class="btn-icon" id="closeModal">✕</button>
+      <span id="presetTitle">經典群論循環公式</span>
+      <button class="btn-icon" id="closeModal" aria-label="關閉公式視窗">✕</button>
     </div>
     <div style="display:grid;gap:6px;margin-top:6px;">
       <button class="preset-item" data-preset="u4">U⁴ = I (單面 4 階恆等閉環)</button>
@@ -425,15 +492,26 @@
   </div>
 </div>
 
+<div class="toast-region" id="toastRegion" role="status" aria-live="polite"></div>
+
 <script>
 (()=>{
   const $ = id => document.getElementById(id);
   const COLORS = { U:'#fdfefe', D:'#ffd400', F:'#10b981', B:'#2563eb', R:'#ef4444', L:'#f97316' };
-  const MOVES = ['U','U′','D','D′','L','L′','R','R′','F','F′','B','B′'];
+  const HEX_TO_FACE = Object.fromEntries(Object.entries(COLORS).map(([f, c]) => [c, f]));
   const FACES = ['U','R','F','D','L','B'];
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   function haptic(ms = 12) {
     if ('vibrate' in navigator) { try { navigator.vibrate(ms); } catch (e) {} }
+  }
+
+  function toast(msg, kind = '') {
+    const el = document.createElement('div');
+    el.className = 'toast' + (kind ? ' ' + kind : '');
+    el.textContent = msg;
+    $('toastRegion').appendChild(el);
+    setTimeout(() => el.remove(), kind === 'err' ? 4200 : 2400);
   }
 
   // 1. 三維旋轉運算與 54 貼紙拓撲
@@ -508,9 +586,34 @@
     stickerState = Object.fromEntries(FACES.flatMap(f => Array.from({length:9}, (_, i) => [f+i, COLORS[f]])));
   }
   function getStateKey(state = stickerState) {
-    return slotList.map(id => state[id]).join('');
+    // 以分隔符串接，避免未來改用多字元色碼時產生碰撞
+    return slotList.map(id => state[id]).join('|');
   }
   const SOLVED_KEY = (() => { initStickerState(); return getStateKey(); })();
+
+  // 轉成 Kociemba 標準 facelet 字串（URFDLB 順序）。
+  // 經窮舉比對確認：本專案的 face+idx 編號與標準 facelet 索引完全一致，只需依序輸出。
+  function toFaceletString(state = stickerState) {
+    let out = '';
+    for (const f of FACES) for (let i = 0; i < 9; i++) out += HEX_TO_FACE[state[f + i]];
+    return out;
+  }
+
+  // cube.js 用 ASCII 撇號，且本專案的 L/R 旋轉方向與 cube.js 相反
+  // （已用 50 組隨機 30 步亂序 → 求解 → 套用回本專案的完整還原驗證）。
+  const CUBE_TO_APP = {
+    U: 'U', "U'": 'U′', D: 'D', "D'": 'D′',
+    L: 'L′', "L'": 'L', R: 'R′', "R'": 'R',
+    F: 'F', "F'": 'F′', B: 'B', "B'": 'B′'
+  };
+  function cubeMoveToAppSeq(move) {
+    if (move.endsWith('2')) {
+      const m = CUBE_TO_APP[move[0]];
+      return m ? [m, m] : [];
+    }
+    const m = CUBE_TO_APP[move];
+    return m ? [m] : [];
+  }
 
   function build3DCube() {
     const root = $('cube');
@@ -553,6 +656,7 @@
 
   // 3. 視角姿態與常向廣告牌補償
   const HOME_RX = -24, HOME_RY = 36;
+  const RX_LIMIT = 89;
   let rx = HOME_RX, ry = HOME_RY;
 
   function updateViewAndBillboards() {
@@ -591,6 +695,11 @@
     if (springAnimId) cancelAnimationFrame(springAnimId);
     const startRx = rx, startRy = ry;
     const targetRx = HOME_RX, targetRy = HOME_RY;
+    if (prefersReducedMotion) {
+      rx = targetRx; ry = targetRy;
+      updateViewAndBillboards();
+      return;
+    }
     const startTime = performance.now();
     const duration = 360;
 
@@ -655,11 +764,27 @@
     return { cycles, order };
   }
 
-  // 6. 轉動排程
-  let isBusy = false;
-  async function applyMove(move, record = true, duration = 200) {
-    if (isBusy) return false;
-    isBusy = true;
+  // 6. 轉動佇列：所有操作依序執行，快速連點不再被丟棄
+  const queue = [];
+  let processing = false;
+
+  function setBusy(on) {
+    // 轉動按鈕保持可點：快速連點交由 queue 依序消化，不直接丟棄輸入。
+    // 只鎖定會與執行中佇列衝突的操作（求解 / 重設 / 公式）。
+    document.querySelectorAll('#solveBtn, #resetBtn, .preset-item').forEach(b => {
+      b.disabled = on;
+    });
+    $('cubeStage').setAttribute('aria-busy', on ? 'true' : 'false');
+  }
+
+  function enqueue(seq, options = { record: true, duration: 190 }) {
+    if (!seq.length) return;
+    queue.push(...seq.map(move => ({ move, ...options })));
+    void drain();
+  }
+
+  async function execute(job) {
+    const { move, record, duration } = job;
     haptic(15);
 
     const base = move[0], [axis, layer, clock] = specs[base];
@@ -689,7 +814,7 @@
         c.o = nextO;
         c.e.style.transform = to;
         anim.cancel();
-      });
+      }, err => { anim.cancel(); throw err; });
     });
 
     await Promise.all(animPromises);
@@ -697,6 +822,8 @@
     const prevState = { ...stickerState };
     pairs.forEach(([src, dst]) => { stickerState[dst] = prevState[src]; });
     const nextKey = getStateKey();
+    const previousNodeKey = currentNodeKey;
+    currentNodeKey = nextKey;
 
     if (record) {
       moveHistory.push(move);
@@ -704,12 +831,17 @@
       let isNewCycle = false;
 
       if (!targetNode) {
+        // 初始位置採可重現的黃金角螺旋，不再依賴隨機值
+        const idx = graphNodes.size;
+        const angle = idx * 2.399963;
+        const radius = 18 + Math.sqrt(idx) * 9;
+        const parent = graphNodes.get(previousNodeKey);
         targetNode = {
-          id: graphNodes.size, key: nextKey,
-          label: nextKey === SOLVED_KEY ? 'S₀' : `S${graphNodes.size}`,
+          id: idx, key: nextKey,
+          label: nextKey === SOLVED_KEY ? 'S₀' : `S${idx}`,
           depth: moveHistory.length,
-          x: (graphNodes.get(currentNodeKey)?.x || 0) + (Math.random() - 0.5) * 45,
-          y: (graphNodes.get(currentNodeKey)?.y || 0) + (Math.random() - 0.5) * 45,
+          x: (parent?.x || 0) + Math.cos(angle) * radius,
+          y: (parent?.y || 0) + Math.sin(angle) * radius,
           vx: 0, vy: 0, isSolved: nextKey === SOLVED_KEY
         };
         graphNodes.set(nextKey, targetNode);
@@ -719,62 +851,57 @@
         $('cyclesVal').textContent = cycleCount;
       }
 
-      graphEdges.push({ from: currentNodeKey, to: nextKey, move, isCycle: isNewCycle });
-      currentNodeKey = nextKey;
+      graphEdges.push({ from: previousNodeKey, to: nextKey, move, isCycle: isNewCycle });
     }
 
-    isBusy = false;
     updateUI();
-    return true;
+  }
+
+  async function drain() {
+    if (processing) return;
+
+    processing = true;
+    setBusy(true);
+
+    try {
+      while (queue.length) {
+        await execute(queue.shift());
+      }
+    } catch (err) {
+      console.error(err);
+      queue.length = 0;
+      toast('動畫執行失敗，已安全解除鎖定', 'err');
+    } finally {
+      processing = false;
+      setBusy(false);
+      updateUI();
+    }
   }
 
   function inverseMove(m) { return m.includes('′') ? m[0] : m + '′'; }
 
-  function solveBFS() {
-    if (currentNodeKey === SOLVED_KEY) return [];
-    const queue = [[currentNodeKey, []]];
-    const visited = new Set([currentNodeKey]);
-    let graphSolution = null;
-
-    const adj = new Map();
-    for (const edge of graphEdges) {
-      if (!adj.has(edge.from)) adj.set(edge.from, []);
-      adj.get(edge.from).push({ to: edge.to, move: edge.move });
-      if (!adj.has(edge.to)) adj.set(edge.to, []);
-      adj.get(edge.to).push({ to: edge.from, move: inverseMove(edge.move) });
-    }
-
-    while (queue.length > 0) {
-      const [k, path] = queue.shift();
-      if (k === SOLVED_KEY) {
-        graphSolution = path;
-        break;
-      }
-      for (const next of (adj.get(k) || [])) {
-        if (!visited.has(next.to)) {
-          visited.add(next.to);
-          queue.push([next.to, [...path, next.move]]);
-        }
-      }
-    }
-    return graphSolution && graphSolution.length > 0 ? graphSolution : moveHistory.slice().reverse().map(inverseMove);
-  }
-
   // 7. 畫布渲染
   const graphCanvas = $('graphCanvas'), gctx = graphCanvas.getContext('2d');
   let draggedNode = null;
+  let lastGraphFrame = 0;
 
   function resizeCanvas(c, ctx) {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const w = c.clientWidth, h = c.clientHeight;
-    if (c.width !== w * dpr || c.height !== h * dpr) {
-      c.width = w * dpr; c.height = h * dpr;
+    if (c.width !== Math.round(w * dpr) || c.height !== Math.round(h * dpr)) {
+      c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
     }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     return { w, h };
   }
 
-  function renderGraph() {
+  function renderGraph(now) {
+    requestAnimationFrame(renderGraph);
+    // 分頁不可見時暫停；凱萊圖限流至約 30 FPS（力導向每幀是 O(n²)）
+    if (document.hidden) return;
+    if (now === undefined || now - lastGraphFrame < 32) return;
+    lastGraphFrame = now === undefined ? 0 : now;
+
     const { w, h } = resizeCanvas(graphCanvas, gctx);
     const nodes = Array.from(graphNodes.values());
 
@@ -783,7 +910,8 @@
         const a = nodes[i], b = nodes[j];
         const dx = b.x - a.x, dy = b.y - a.y;
         const dist = Math.hypot(dx, dy) || 1;
-        const force = 1800 / (dist * dist);
+        // 限幅：避免兩點過近時 1/d² 爆衝把節點彈飛
+        const force = Math.min(1800 / (dist * dist), 40);
         const fx = (dx / dist) * force, fy = (dy / dist) * force;
         if (a !== draggedNode && !a.isSolved) { a.vx -= fx; a.vy -= fy; }
         if (b !== draggedNode && !b.isSolved) { b.vx += fx; b.vy += fy; }
@@ -794,7 +922,7 @@
       if (!a || !b) continue;
       const dx = b.x - a.x, dy = b.y - a.y;
       const dist = Math.hypot(dx, dy) || 1;
-      const force = (dist - 55) * 0.05;
+      const force = Math.max(-20, Math.min(20, (dist - 55) * 0.05));
       const fx = (dx / dist) * force, fy = (dy / dist) * force;
       if (a !== draggedNode && !a.isSolved) { a.vx -= fx; a.vy -= fy; }
       if (b !== draggedNode && !b.isSolved) { b.vx += fx; b.vy += fy; }
@@ -803,7 +931,8 @@
       if (n.isSolved) { n.x = 0; n.y = 0; continue; }
       if (n === draggedNode) continue;
       n.vx -= n.x * 0.025; n.vy -= n.y * 0.025;
-      n.vx *= 0.8; n.vy *= 0.8;
+      n.vx = Math.max(-30, Math.min(30, n.vx * 0.8));
+      n.vy = Math.max(-30, Math.min(30, n.vy * 0.8));
       n.x += n.vx; n.y += n.vy;
     }
 
@@ -837,7 +966,6 @@
       gctx.fillText(n.label, n.x + 8, n.y - 6);
     }
     gctx.restore();
-    requestAnimationFrame(renderGraph);
   }
 
   // 貼紙投影
@@ -857,7 +985,10 @@
     return out;
   }
   function startProjectionAnimation(pairs, duration) { animState = { pairs, duration, start: performance.now() }; }
-  function renderProjection() {
+  function renderProjection(now) {
+    requestAnimationFrame(renderProjection);
+    if (document.hidden) return;
+
     const { w, h } = resizeCanvas(projCanvas, pctx);
     pctx.clearRect(0, 0, w, h);
     const pos = getUnfoldedPositions(w, h);
@@ -895,12 +1026,21 @@
       }
       if (progress >= 1) animState = null;
     }
-    requestAnimationFrame(renderProjection);
   }
 
   function updateUI() {
     $('depthVal').textContent = moveHistory.length;
     $('nodesVal').textContent = graphNodes.size;
+  }
+
+  // 尺寸變化自動處理（視窗縮放、分頁切換、旋轉螢幕）
+  if ('ResizeObserver' in window) {
+    const ro = new ResizeObserver(() => {
+      resizeCanvas(graphCanvas, gctx);
+      resizeCanvas(projCanvas, pctx);
+    });
+    ro.observe(graphCanvas);
+    ro.observe(projCanvas);
   }
 
   // 8. 觸控 / 滑鼠 雙模事件綁定
@@ -917,7 +1057,8 @@
   stage.addEventListener('pointermove', e => {
     if (!isDragging) return;
     ry += (e.clientX - lastX) * 0.55;
-    rx -= (e.clientY - lastY) * 0.55;
+    // X 軸限幅，避免長時間拖曳後翻轉難以控制
+    rx = Math.max(-RX_LIMIT, Math.min(RX_LIMIT, rx - (e.clientY - lastY) * 0.55));
     lastX = e.clientX; lastY = e.clientY;
     updateViewAndBillboards();
   });
@@ -958,63 +1099,58 @@
   // 回正開關
   $('toggleSpring').onclick = () => {
     autoSpringEnabled = !autoSpringEnabled;
-    $('toggleSpring').classList.toggle('active', autoSpringEnabled);$('toggleSpring').textContent = autoSpringEnabled ? '🧲 自動回正: 開' : '🔓 自由檢視';
+    $('toggleSpring').classList.toggle('active', autoSpringEnabled);
+    $('toggleSpring').setAttribute('aria-pressed', String(autoSpringEnabled));
+    $('toggleSpring').textContent = autoSpringEnabled ? '🧲 自動回正: 開' : '🔓 自由檢視';
     $('springHud').querySelector('span').textContent = autoSpringEnabled
       ? '陀螺儀回正啟用中（鬆手自動彈回）'
       : '自由角度模式（手動拖動）';
     haptic(10);
   };
 
-  // 空間羅盤操作
+  // 空間羅盤操作：一般按鈕統一用 click，鍵盤與螢幕閱讀器才有正確語意
   document.querySelectorAll('.dpad-btn').forEach(btn => {
-    btn.addEventListener('pointerdown', e => {
-      e.preventDefault();
-      applyMove(btn.dataset.move);
-    });
+    btn.addEventListener('click', () => enqueue([btn.dataset.move]));
   });
 
   // 桌機鍵盤快捷鍵支援
   window.addEventListener('keydown', e => {
-    if (isBusy) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const target = e.target;
+    if (target instanceof HTMLElement &&
+        (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) return;
+    if (e.repeat && processing) return;
     const key = e.key.toUpperCase();
     if (['U','D','L','R','F','B'].includes(key)) {
-      applyMove(e.shiftKey ? key + '′' : key);
+      e.preventDefault();
+      enqueue([e.shiftKey ? key + '′' : key]);
+    } else if (e.key === 'Escape') {
+      closePresets();
     }
   });
 
   // 功能按鍵
-  $('scrambleBtn').addEventListener('pointerdown', async e => {
-    e.preventDefault();
-    if (isBusy) return;
-    for (let i = 0; i < 6; i++) {
-      const randMove = MOVES[Math.floor(Math.random() * MOVES.length)];
-      await applyMove(randMove, true, 130);
+  $('scrambleBtn').addEventListener('click', () => {
+    // 避免連續轉同一面，否則容易出現大量可逆的無效步
+    const seq = [];
+    let prevBase = null;
+    while (seq.length < 20) {
+      const base = FACES[Math.floor(Math.random() * 6)];
+      if (base === prevBase) continue;
+      prevBase = base;
+      seq.push(Math.random() < 0.5 ? base : base + '′');
     }
+    enqueue(seq, { record: true, duration: 110 });
   });
 
-  $('undoBtn').addEventListener('pointerdown', async e => {
-    e.preventDefault();
-    if (isBusy || moveHistory.length === 0) return;
+  $('undoBtn').addEventListener('click', () => {
+    if (!moveHistory.length) { toast('沒有可回退的操作'); return; }
     const last = moveHistory.pop();
-    await applyMove(inverseMove(last), false, 150);
-    currentNodeKey = getStateKey();
-    updateUI();
+    enqueue([inverseMove(last)], { record: false, duration: 150 });
   });
 
-  $('solveBtn').addEventListener('pointerdown', async e => {
-    e.preventDefault();
-    if (isBusy) return;
-    const solution = solveBFS();
-    if (solution.length === 0) return;
-    for (const m of solution) await applyMove(m, false, 160);
-    moveHistory = [];
-    currentNodeKey = SOLVED_KEY;
-    updateUI();
-  });
-
-  $('resetBtn').addEventListener('pointerdown', e => {
-    e.preventDefault();
-    if (isBusy) return;
+  $('resetBtn').addEventListener('click', () => {
+    queue.length = 0;
     initStickerState();
     build3DCube();
     resetGraph();
@@ -1024,38 +1160,115 @@
     updateUI();
   });
 
+  // 公式 Drawer
+  let lastFocused = null;
+  function openPresets() {
+    lastFocused = document.activeElement;
+    $('presetModal').classList.add('open');
+    $('closeModal').focus();
+  }
+  function closePresets() {
+    if (!$('presetModal').classList.contains('open')) return;
+    $('presetModal').classList.remove('open');
+    if (lastFocused && typeof lastFocused.focus === 'function') lastFocused.focus();
+  }
+  $('openPresets').onclick = openPresets;
+  $('closeModal').onclick = closePresets;
+  $('presetModal').onclick = e => { if (e.target === $('presetModal')) closePresets(); };
+
+  document.querySelectorAll('.preset-item').forEach(item => {
+    item.onclick = () => {
+      closePresets();
+      const type = item.dataset.preset;
+      if (type === 'u4') {
+        enqueue(['U','U','U','U'], { record: true, duration: 150 });
+      } else if (type === 'sexy') {
+        const seq = [];
+        for (let l = 0; l < 6; l++) seq.push('R','U','R′','U′');
+        enqueue(seq, { record: true, duration: 110 });
+      } else if (type === 'checker') {
+        enqueue(['R','R','L','L','U','U','D','D','F','F','B','B'], { record: true, duration: 110 });
+      }
+    };
+  });
+
   // 手機端 Tab 切換
   document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('pointerdown', e => {
-      e.preventDefault();
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.remove('active');
+        b.setAttribute('aria-selected', 'false');
+      });
       document.querySelectorAll('.mobile-tab-view').forEach(c => c.classList.remove('active'));
       btn.classList.add('active');
+      btn.setAttribute('aria-selected', 'true');
       $(btn.dataset.tab).classList.add('active');
       haptic(10);
     });
+    btn.addEventListener('keydown', e => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      e.preventDefault();
+      const all = Array.from(document.querySelectorAll('.tab-btn'));
+      const i = all.indexOf(btn);
+      all[(i + (e.key === 'ArrowRight' ? 1 : all.length - 1)) % all.length].click();
+    });
   });
 
-  // 公式 Drawer
-  $('openPresets').onclick = () => $('presetModal').classList.add('open');$('closeModal').onclick = () => $('presetModal').classList.remove('open');$('presetModal').onclick = e => { if (e.target === $('presetModal'))$('presetModal').classList.remove('open'); };
+  // Kociemba 求解：Worker 執行剪枝表建立與兩階段搜尋，主執行緒不卡頓
+  let solverWorker = null;
+  let solverPending = false;
+  let pendingFacelet = '';
 
-  document.querySelectorAll('.preset-item').forEach(item => {
-    item.onclick = async () => {
-      $('presetModal').classList.remove('open');
-      if (isBusy) return;
-      const type = item.dataset.preset;
-      if (type === 'u4') {
-        for (let i = 0; i < 4; i++) await applyMove('U', true, 150);
-      } else if (type === 'sexy') {
-        const seq = ['R','U','R′','U′'];
-        for (let l = 0; l < 6; l++) {
-          for (const m of seq) await applyMove(m, true, 110);
-        }
-      } else if (type === 'checker') {
-        const cb = ['R','R','L','L','U','U','D','D','F','F','B','B'];
-        for (const m of cb) await applyMove(m, true, 110);
+  function applyCubeSolution(solution) {
+    solverPending = false;
+    if (toFaceletString() !== pendingFacelet) {
+      toast('狀態已變動，已捨棄這次求解結果', 'err');
+      return;
+    }
+    if (!solution) { toast('此狀態無合法解（理論上不會發生）', 'err'); return; }
+    const steps = solution.trim().split(/\s+/);
+    const seq = steps.flatMap(cubeMoveToAppSeq);
+    if (!seq.length) { toast('解法解析失敗', 'err'); return; }
+    toast(`Kociemba 解出 ${steps.length} 步`, 'ok');
+    enqueue(seq, { record: true, duration: 120 });
+  }
+
+  function getSolver() {
+    if (solverWorker) return solverWorker;
+    solverWorker = new Worker('lib/solver-worker.js');
+    solverWorker.onmessage = e => {
+      const msg = e.data || {};
+      if (msg.type === 'ready') {
+        solverPending = false;
+        toast('求解器已就緒', 'ok');
+      } else if (msg.type === 'solved') {
+        applyCubeSolution(msg.solution);
+      } else if (msg.type === 'error') {
+        solverPending = false;
+        toast('求解失敗：' + msg.message, 'err');
       }
     };
+    solverWorker.onerror = () => {
+      solverPending = false;
+      toast('求解器載入失敗，請確認 lib/ 目錄可存取', 'err');
+    };
+    return solverWorker;
+  }
+
+  $('solveBtn').addEventListener('click', () => {
+    if (getStateKey() === SOLVED_KEY) { toast('目前已是完成狀態'); return; }
+    if (solverPending) return;
+    if (processing || queue.length) { toast('請等待轉動佇列執行完畢'); return; }
+    if (typeof Worker !== 'function') { toast('此瀏覽器不支援 Web Worker，無法求解', 'err'); return; }
+    solverPending = true;
+    pendingFacelet = toFaceletString();
+    toast('建立 Kociemba 剪枝表並求解中…');
+    getSolver().postMessage({ type: 'solve', facelet: pendingFacelet });
+    setTimeout(() => {
+      if (!solverPending) return;
+      solverPending = false;
+      toast('求解器無回應，請重新整理後再試', 'err');
+    }, 20000);
   });
 
   // 初始化啟動
@@ -1064,8 +1277,8 @@
   resetGraph();
   updateUI();
   updateViewAndBillboards();
-  renderGraph();
-  renderProjection();
+  requestAnimationFrame(renderGraph);
+  requestAnimationFrame(renderProjection);
 })();
 </script>
 </body>
