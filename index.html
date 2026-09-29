@@ -215,6 +215,12 @@
       max-width: 400px; margin: 6px auto 0; width: 100%;
     }
     .action-row .action-btn.wide { grid-column: 1 / -1; }
+    .speed-row {
+      display: flex; align-items: center; gap: 8px;
+      max-width: 400px; margin: 6px auto 0; width: 100%; font-size: 0.85rem; color: #8ecbff;
+    }
+    .speed-row input { flex: 1; accent-color: var(--accent); }
+    .speed-row output { min-width: 3.2em; text-align: right; }
     .action-btn {
       min-height: var(--tap); border-radius: 9px; font-weight: 700; font-size: 0.8rem;
       border: 1px solid var(--line); background: var(--panel-elevated); color: var(--ink);
@@ -433,11 +439,16 @@
           </div>
 
           <!-- 下: D -->
-          <div class="dir-unit vertical pos-bottom">
+          <div class="dir-unit pos-bottom">
             <button class="dpad-btn" data-move="D" aria-label="底面順時針">D 底順</button>
             <button class="dpad-btn prime" data-move="D′" aria-label="底面逆時針">D′ 底逆</button>
           </div>
         </div>
+
+        <label class="speed-row">轉速
+          <input type="range" id="speedRange" min="0.25" max="3" step="0.25" value="1" aria-label="方塊轉速倍率">
+          <output id="speedVal">1×</output>
+        </label>
 
         <div class="action-row">
           <button class="action-btn primary" id="scrambleBtn">🎲 打亂 20 步</button>
@@ -777,6 +788,12 @@
     $('cubeStage').setAttribute('aria-busy', on ? 'true' : 'false');
   }
 
+  let speedFactor = 1;
+  $('speedRange').addEventListener('input', e => {
+    speedFactor = parseFloat(e.target.value);
+    $('speedVal').textContent = speedFactor + '×';
+  });
+
   function enqueue(seq, options = { record: true, duration: 190 }) {
     if (!seq.length) return;
     queue.push(...seq.map(move => ({ move, ...options })));
@@ -784,7 +801,8 @@
   }
 
   async function execute(job) {
-    const { move, record, duration } = job;
+    const { move, record } = job;
+    const duration = job.duration / speedFactor;
     haptic(15);
 
     const base = move[0], [axis, layer, clock] = specs[base];
