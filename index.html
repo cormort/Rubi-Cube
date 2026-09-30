@@ -168,6 +168,7 @@
       display: flex; align-items: center; gap: 5px;
     }
     .spring-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+    .stage-hud.is-off .spring-dot { background: #6482a0; }
 
     /* ================= 空間十字羅盤控制器 ================= */
     .spatial-deck {
@@ -345,8 +346,11 @@
       <span class="badge">Kociemba 完整版</span>
     </div>
     <div class="header-actions">
-      <!-- 陀螺儀彈簧回正開關 -->
+      <!-- 視角工具：自動回正 / 手動回正 / 兩軸鎖定 -->
       <button class="btn-icon active" id="toggleSpring" aria-pressed="true">🧲 自動回正: 開</button>
+      <button class="btn-icon" id="recenterBtn">↺ 立即回正</button>
+      <button class="btn-icon" id="lockVertical" aria-pressed="false">🔒 垂直鎖定</button>
+      <button class="btn-icon" id="lockHorizontal" aria-pressed="false">🔒 水平鎖定</button>
       <button class="btn-icon" id="openPresets" aria-haspopup="dialog">✨ 經典公式</button>
       <button class="btn-icon" id="resetBtn">重設</button>
       <button class="btn-icon" id="updateBtn">🔄 檢查更新</button>
@@ -700,11 +704,21 @@
   // 4. 陀螺儀彈簧自動回正引擎
   let autoSpringEnabled = true;
   let springAnimId = null;
+  // 鎖定語意：鎖住該軸 = 拖曳、彈簧、手動回正一律不動它。
+  // 兩個都鎖等同凍結視角。垂直鎖定鎖俯仰 (rx)，水平鎖定鎖水平旋轉 (ry)。
+  let lockVertical = false, lockHorizontal = false;
 
   function springBackToHome() {
     if (springAnimId) cancelAnimationFrame(springAnimId);
     const startRx = rx, startRy = ry;
-    const targetRx = HOME_RX, targetRy = HOME_RY;
+    const targetRx = lockVertical ? rx : HOME_RX;
+    const targetRy = lockHorizontal ? ry : HOME_RY;
+    if (Math.abs(targetRx - startRx) < 0.5 && Math.abs(targetRy - startRy) < 0.5) {
+      rx = targetRx; ry = targetRy;
+      updateViewAndBillboards();
+      springAnimId = null;
+      return;
+    }
     if (prefersReducedMotion) {
       rx = targetRx; ry = targetRy;
       updateViewAndBillboards();
@@ -1074,9 +1088,9 @@
 
   stage.addEventListener('pointermove', e => {
     if (!isDragging) return;
-    ry += (e.clientX - lastX) * 0.55;
+    if (!lockHorizontal) ry += (e.clientX - lastX) * 0.55;
     // X 軸限幅，避免長時間拖曳後翻轉難以控制
-    rx = Math.max(-RX_LIMIT, Math.min(RX_LIMIT, rx - (e.clientY - lastY) * 0.55));
+    if (!lockVertical) rx = Math.max(-RX_LIMIT, Math.min(RX_LIMIT, rx - (e.clientY - lastY) * 0.55));
     lastX = e.clientX; lastY = e.clientY;
     updateViewAndBillboards();
   });
@@ -1114,17 +1128,43 @@
   graphCanvas.addEventListener('pointerup', endGraphDrag);
   graphCanvas.addEventListener('pointercancel', endGraphDrag);
 
-  // 回正開關
-  $('toggleSpring').onclick = () => {
-    autoSpringEnabled = !autoSpringEnabled;
+  // 視角工具：自動回正開關、立即回正、兩軸鎖定
+  function syncViewControls() {
     $('toggleSpring').classList.toggle('active', autoSpringEnabled);
     $('toggleSpring').setAttribute('aria-pressed', String(autoSpringEnabled));
     $('toggleSpring').textContent = autoSpringEnabled ? '🧲 自動回正: 開' : '🔓 自由檢視';
-    $('springHud').querySelector('span').textContent = autoSpringEnabled
-      ? '陀螺儀回正啟用中（鬆手自動彈回）'
-      : '自由角度模式（手動拖動）';
+    $('lockVertical').classList.toggle('active', lockVertical);
+    $('lockVertical').setAttribute('aria-pressed', String(lockVertical));
+    $('lockHorizontal').classList.toggle('active', lockHorizontal);
+    $('lockHorizontal').setAttribute('aria-pressed', String(lockHorizontal));
+
+    const locks = [lockVertical && '垂直', lockHorizontal && '水平'].filter(Boolean).join('、');
+    $('springHud').classList.toggle('is-off', !autoSpringEnabled);
+    $('springHud').querySelector('span').textContent =
+      (autoSpringEnabled ? '陀螺儀回正啟用中（鬆手自動彈回）' : '自由角度模式（手動拖動）')
+      + (locks ? `（${locks}已鎖）` : '');
+  }
+
+  $('toggleSpring').onclick = () => {
+    autoSpringEnabled = !autoSpringEnabled;
+    syncViewControls();
     haptic(10);
   };
+  $('recenterBtn').onclick = () => {
+    springBackToHome();
+    haptic(20);
+  };
+  $('lockVertical').onclick = () => {
+    lockVertical = !lockVertical;
+    syncViewControls();
+    haptic(10);
+  };
+  $('lockHorizontal').onclick = () => {
+    lockHorizontal = !lockHorizontal;
+    syncViewControls();
+    haptic(10);
+  };
+  syncViewControls();
 
   // 空間羅盤操作：一般按鈕統一用 click，鍵盤與螢幕閱讀器才有正確語意
   document.querySelectorAll('.dpad-btn').forEach(btn => {
