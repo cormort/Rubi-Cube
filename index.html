@@ -4,6 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#07101d">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
   <meta name="description" content="圖論魔術方塊：以凱萊圖視覺化 3x3x3 魔術方塊的置換結構，內建 Kociemba 兩階段求解器。">
   <title>圖論魔術方塊 - Kociemba 完整版</title>
   <style>
@@ -346,6 +349,7 @@
       <button class="btn-icon active" id="toggleSpring" aria-pressed="true">🧲 自動回正: 開</button>
       <button class="btn-icon" id="openPresets" aria-haspopup="dialog">✨ 經典公式</button>
       <button class="btn-icon" id="resetBtn">重設</button>
+      <button class="btn-icon" id="updateBtn">🔄 檢查更新</button>
     </div>
   </header>
 
@@ -1298,6 +1302,41 @@
   updateViewAndBillboards();
   requestAnimationFrame(renderGraph);
   requestAnimationFrame(renderProjection);
+
+  // PWA：註冊 Service Worker 與檢查更新
+  if ('serviceWorker' in navigator) {
+    // 首次安裝時沒有舊的 controller，不需重新載入
+    let reloading = !navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!reloading) { reloading = true; location.reload(); }
+    });
+    const promptUpdate = worker => {
+      if (confirm('發現新版本，要立即更新嗎？')) worker.postMessage('skipWaiting');
+    };
+    navigator.serviceWorker.register('sw.js').then(reg => {
+      if (reg.waiting && navigator.serviceWorker.controller) promptUpdate(reg.waiting);
+      reg.addEventListener('updatefound', () => {
+        const w = reg.installing;
+        w.addEventListener('statechange', () => {
+          if (w.state === 'installed' && navigator.serviceWorker.controller) promptUpdate(w);
+        });
+      });
+      $('updateBtn').addEventListener('click', async () => {
+        const btn = $('updateBtn');
+        btn.textContent = '⏳ 檢查中…';
+        try {
+          await reg.update();
+          if (!reg.installing && !reg.waiting) {
+            // 頁面採網路優先，重新載入即可取得最新檔案
+            if (confirm('Service Worker 已是最新。要重新載入頁面取得最新內容嗎？')) location.reload();
+          }
+        } catch { alert('無法連線檢查更新，目前為離線版本。'); }
+        btn.textContent = '🔄 檢查更新';
+      });
+    });
+  } else {
+    $('updateBtn').addEventListener('click', () => location.reload());
+  }
 })();
 </script>
 </body>
