@@ -574,9 +574,11 @@
     }
   }
   const slotList = Object.keys(slots).sort();
+  // [軸, 該面所在層, 順時針方向]。六面一律 clock = layer，
+  // 對應 Singmaster 記號「從該面外側看為順時針」（已用窮舉比對驗證）。
   const specs = {
     U: ['y', -1, -1], D: ['y', 1, 1],
-    L: ['x', -1, 1],  R: ['x', 1, -1],
+    L: ['x', -1, -1], R: ['x', 1, 1],
     F: ['z', 1, 1],   B: ['z', -1, -1]
   };
 
@@ -614,20 +616,13 @@
     return out;
   }
 
-  // cube.js 用 ASCII 撇號，且本專案的 L/R 旋轉方向與 cube.js 相反
-  // （已用 50 組隨機 30 步亂序 → 求解 → 套用回本專案的完整還原驗證）。
-  const CUBE_TO_APP = {
-    U: 'U', "U'": 'U′', D: 'D', "D'": 'D′',
-    L: 'L′', "L'": 'L', R: 'R′', "R'": 'R',
-    F: 'F', "F'": 'F′', B: 'B', "B'": 'B′'
-  };
-  function cubeMoveToAppSeq(move) {
-    if (move.endsWith('2')) {
-      const m = CUBE_TO_APP[move[0]];
-      return m ? [m, m] : [];
-    }
-    const m = CUBE_TO_APP[move];
-    return m ? [m] : [];
+  // cube.js 用 ASCII 撇號並以 X2 表示 180°，與本專案記號不同，僅做正規化。
+  const KOCIEMBA_FACES = new Set(['U', 'D', 'L', 'R', 'F', 'B']);
+  function kociembaMoveToApp(move) {
+    const base = move[0];
+    if (!KOCIEMBA_FACES.has(base)) return [];
+    if (move.endsWith('2')) return [base, base];
+    return [base + (move.endsWith("'") ? '′' : '')];
   }
 
   function build3DCube() {
@@ -1250,7 +1245,7 @@
     }
     if (!solution) { toast('此狀態無合法解（理論上不會發生）', 'err'); return; }
     const steps = solution.trim().split(/\s+/);
-    const seq = steps.flatMap(cubeMoveToAppSeq);
+    const seq = steps.flatMap(kociembaMoveToApp);
     if (!seq.length) { toast('解法解析失敗', 'err'); return; }
     toast(`Kociemba 解出 ${steps.length} 步`, 'ok');
     enqueue(seq, { record: true, duration: 120 });
