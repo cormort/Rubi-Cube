@@ -1016,7 +1016,7 @@
     }
     return out;
   }
-  function startProjectionAnimation(pairs, duration) { animState = { pairs, duration, start: performance.now() }; }
+  function startProjectionAnimation(pairs, duration) { animState = { pairs, duration, start: performance.now(), done: false }; }
   function renderProjection(now) {
     requestAnimationFrame(renderProjection);
     if (document.hidden) return;
@@ -1024,6 +1024,8 @@
     const { w, h } = resizeCanvas(projCanvas, pctx);
     pctx.clearRect(0, 0, w, h);
     const pos = getUnfoldedPositions(w, h);
+    // 必須顯式設定：否則會沿用上一次軌道動畫留下的 strokeStyle，讓點的外框變色
+    pctx.strokeStyle = 'rgba(255,255,255,0.3)';
     for (const f of FACES) {
       for (let i = 0; i < 9; i++) {
         const p = pos[f + i];
@@ -1037,6 +1039,8 @@
     if (animState) {
       const progress = Math.min(1, (performance.now() - animState.start) / animState.duration);
       const t = 1 - Math.pow(1 - progress, 3);
+      // 動畫結束後軌道線仍保留，只把飛行中的貼紙收掉，讓使用者能靜態比較各面的對應關係
+      const live = progress < 1;
       for (const [src, dst] of animState.pairs) {
         const p1 = pos[src], p2 = pos[dst];
         if (!p1 || !p2) continue;
@@ -1045,8 +1049,9 @@
         pctx.beginPath();
         pctx.moveTo(p1.x, p1.y);
         pctx.quadraticCurveTo(mx, my, p2.x, p2.y);
-        pctx.strokeStyle = 'rgba(97,218,251,0.35)';
+        pctx.strokeStyle = live ? 'rgba(97,218,251,0.35)' : 'rgba(97,218,251,0.2)';
         pctx.stroke();
+        if (!live) continue;
         const qx = (1-t)*(1-t)*p1.x + 2*(1-t)*t*mx + t*t*p2.x;
         const qy = (1-t)*(1-t)*p1.y + 2*(1-t)*t*my + t*t*p2.y;
         pctx.beginPath();
@@ -1056,7 +1061,7 @@
         pctx.strokeStyle = '#61dafb';
         pctx.stroke();
       }
-      if (progress >= 1) animState = null;
+      if (progress >= 1) animState.done = true;
     }
   }
 
@@ -1212,6 +1217,8 @@
     initStickerState();
     build3DCube();
     resetGraph();
+    animState = null;
+    $('projHint').textContent = '等候轉動';
     $('orderVal').textContent = 1;
     $('cyclesVal').textContent = 0;
     springBackToHome();
