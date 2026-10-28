@@ -280,6 +280,111 @@
     .tut-step p { margin: 8px 0; font-size: 0.8rem; line-height: 1.6; color: var(--ink); }
     .tut-step .preset-item { display: block; width: 100%; margin-top: 6px; font-family: ui-monospace, monospace; }
 
+    /* OLL / PLL 速解表與彈窗切換 */
+    .modal-sheet.wide { max-width: 780px; width: 95%; max-height: 86vh; }
+    .tut-tabs {
+      display: flex; gap: 6px; background: rgba(7, 16, 29, 0.8); padding: 4px;
+      border-radius: 10px; border: 1px solid var(--line);
+    }
+    .tut-tab {
+      flex: 1; padding: 7px 6px; font-size: 0.78rem; font-weight: 700; color: var(--muted);
+      background: transparent; border: none; border-radius: 7px; cursor: pointer; min-height: 34px;
+    }
+    .tut-tab.active {
+      background: linear-gradient(135deg, #1881b0, #14598a); color: #fff;
+    }
+    .tut-pane { display: none; flex-direction: column; gap: 10px; overflow: auto; padding-right: 2px; }
+    .tut-pane.active { display: flex; }
+    .alg-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 8px;
+    }
+    .alg-card {
+      display: flex; align-items: center; gap: 10px; padding: 9px 10px;
+      border-radius: 10px; background: var(--panel-elevated); border: 1px solid var(--line);
+      transition: border-color 0.15s ease, transform 0.12s ease, background 0.15s ease;
+      cursor: pointer;
+    }
+    .alg-card:hover {
+      border-color: var(--accent); background: #172d48;
+    }
+    .alg-card:active {
+      transform: scale(0.99);
+    }
+    .alg-card.matched {
+      border-color: var(--green); box-shadow: 0 0 0 1px var(--green), 0 0 12px rgba(53,211,154,0.25);
+    }
+    .alg-diagram {
+      width: 58px; height: 58px; flex-shrink: 0; display: grid; place-items: center;
+      background: rgba(7, 16, 29, 0.75); border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);
+    }
+    .alg-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+    .alg-header { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+    .alg-id { font-size: 0.8rem; font-weight: 800; color: var(--accent); }
+    .alg-tag { font-size: 0.65rem; padding: 1px 6px; border-radius: 999px; background: rgba(53,211,154,0.18); color: var(--green); font-weight: 700; }
+    .alg-btns { display: flex; flex-direction: column; gap: 4px; }
+    .alg-btn-row { display: flex; gap: 4px; align-items: stretch; }
+    .alg-play {
+      flex: 1; text-align: left; padding: 5px 8px; border-radius: 7px;
+      background: rgba(7, 16, 29, 0.7); border: 1px solid #223c58; color: var(--ink);
+      font-family: ui-monospace, monospace; font-size: 0.73rem; font-weight: 600;
+      cursor: pointer; min-height: 30px; line-height: 1.3; word-break: break-word;
+    }
+    .alg-play:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .alg-play:disabled, .alg-setup:disabled { opacity: 0.45; cursor: not-allowed; }
+    .alg-setup {
+      padding: 4px 7px; border-radius: 7px; background: rgba(255,159,67,0.14);
+      border: 1px solid rgba(255,159,67,0.4); color: var(--orange);
+      font-size: 0.68rem; font-weight: 700; cursor: pointer; white-space: nowrap;
+    }
+    .alg-setup:hover:not(:disabled) { background: rgba(255,159,67,0.25); }
+
+    /* 3D 舞台動態解法追蹤橫幅 (HUD) */
+    .alg-runner-bar {
+      position: absolute; left: 8px; right: 8px; bottom: 8px;
+      background: rgba(10, 20, 34, 0.94); border: 1px solid rgba(97, 218, 251, 0.45);
+      border-radius: 10px; padding: 7px 10px; display: none; flex-direction: column; gap: 6px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.6); backdrop-filter: blur(6px); z-index: 10;
+    }
+    .alg-runner-bar.active { display: flex; }
+    .alg-runner-top {
+      display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 0.74rem; flex-wrap: wrap;
+    }
+    .alg-runner-meta { display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1; }
+    .alg-runner-title { font-weight: 800; color: var(--accent); white-space: nowrap; }
+    .alg-runner-formula { font-family: ui-monospace, monospace; color: var(--muted); font-size: 0.68rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .alg-runner-controls { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+    .runner-btn {
+      padding: 3px 7px; border-radius: 6px; font-size: 0.68rem; font-weight: 700;
+      background: var(--panel-elevated); border: 1px solid #2b4c70; color: var(--ink);
+      cursor: pointer; transition: all 0.12s ease; min-height: 24px;
+    }
+    .runner-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .runner-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .runner-btn.primary {
+      background: linear-gradient(135deg, #1881b0, #14598a); border-color: var(--accent); color: #fff;
+    }
+    .runner-btn.step-mode-on {
+      background: rgba(255, 159, 67, 0.2); border-color: var(--orange); color: var(--orange);
+    }
+    .alg-runner-steps {
+      display: flex; flex-wrap: wrap; gap: 4px; align-items: center; max-height: 52px; overflow: auto;
+    }
+    .alg-step-pill {
+      padding: 2px 6px; border-radius: 5px; font-family: ui-monospace, monospace;
+      font-size: 0.72rem; font-weight: 700; background: rgba(255,255,255,0.06);
+      color: var(--muted); border: 1px solid transparent; transition: all 0.12s ease;
+    }
+    .alg-step-pill.done {
+      background: rgba(53, 211, 154, 0.15); color: var(--green); border-color: rgba(53, 211, 154, 0.35);
+    }
+    .alg-step-pill.active {
+      background: rgba(97, 218, 251, 0.25); color: #fff; border-color: var(--accent);
+      transform: scale(1.08); box-shadow: 0 0 8px rgba(97, 218, 251, 0.45);
+    }
+    .alg-step-pill.next {
+      border-color: var(--orange); color: var(--orange); background: rgba(255, 159, 67, 0.15);
+    }
+
     /* Toast */
     .toast-region {
       position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px));
@@ -417,6 +522,23 @@
             </div>
           </div>
         </div>
+
+        <!-- 動態解法步驟追蹤器 -->
+        <div class="alg-runner-bar" id="algRunnerBar" aria-live="polite">
+          <div class="alg-runner-top">
+            <div class="alg-runner-meta">
+              <span class="alg-runner-title" id="algRunnerTitle">動態解法</span>
+              <span class="alg-runner-formula" id="algRunnerFormula"></span>
+            </div>
+            <div class="alg-runner-controls">
+              <button class="runner-btn" id="runnerModeBtn" title="切換單步暫停或自動連播">🎯 單步模式: 關</button>
+              <button class="runner-btn primary" id="runnerNextBtn" title="執行下一步">▶ 繼續下一步</button>
+              <button class="runner-btn" id="runnerAutoBtn" title="自動連續播放剩餘步驟">⏩ 連播</button>
+              <button class="runner-btn" id="runnerCloseBtn" aria-label="關閉追蹤器" title="關閉">✕</button>
+            </div>
+          </div>
+          <div class="alg-runner-steps" id="algRunnerSteps"></div>
+        </div>
       </div>
 
       <!-- 空間十字羅盤控制器 -->
@@ -485,7 +607,7 @@
              aria-labelledby="tab-col-right" tabindex="-1">
       <div class="card-title">
         <span>局部凱萊狀態圖 (Cayley Graph)</span>
-        <small style="font-size:0.72rem;color:var(--muted)">力導向拓撲佈局 · 可拖拽節點</small>
+        <small style="font-size:0.72rem;color:var(--muted)">點擊節點動態導航 · 可拖拽</small>
       </div>
       <div class="canvas-wrap">
         <canvas id="graphCanvas" role="img" aria-label="已探索狀態的凱萊圖"></canvas>
@@ -517,17 +639,40 @@
   </div>
 </div>
 
-<!-- 層先法解法教學 -->
+<!-- 層先法與 CFOP (OLL / PLL) 解法教學 -->
 <div class="modal-backdrop" id="tutorialModal">
-  <div class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="tutorialTitle">
+  <div class="modal-sheet wide" role="dialog" aria-modal="true" aria-labelledby="tutorialTitle">
     <div class="sheet-title">
-      <span id="tutorialTitle">層先法教學（底面十字起步）</span>
+      <span id="tutorialTitle">解法教學與 OLL / PLL 公式庫</span>
       <button class="btn-icon" id="closeTutorial" aria-label="關閉教學視窗">✕</button>
     </div>
-    <p style="margin:0;font-size:0.78rem;color:var(--muted);line-height:1.6">
-      黃色 (D) 在底、白色 (U) 在頂，綠色 (F) 朝向自己。✅ 會即時檢查目前方塊是否完成該步；點公式會直接在方塊上播放。
-    </p>
-    <div id="tutorialSteps" style="display:grid;gap:8px"></div>
+
+    <div class="tut-tabs" role="tablist" aria-label="解法分類">
+      <button class="tut-tab active" role="tab" data-tut-tab="lbl" aria-selected="true">🌱 層先法 (7 步)</button>
+      <button class="tut-tab" role="tab" data-tut-tab="oll" aria-selected="false">🟨 OLL 頂面定向 (40)</button>
+      <button class="tut-tab" role="tab" data-tut-tab="pll" aria-selected="false">🔄 PLL 頂層置換 (14)</button>
+    </div>
+
+    <div class="tut-pane active" id="tut-pane-lbl">
+      <p style="margin:0;font-size:0.78rem;color:var(--muted);line-height:1.6">
+        黃色 (D) 在底、白色 (U) 在頂，綠色 (F) 朝向自己。✅ 會即時檢查目前方塊是否完成該步；點公式會直接在方塊上播放。
+      </p>
+      <div id="tutorialSteps" style="display:grid;gap:8px"></div>
+    </div>
+
+    <div class="tut-pane" id="tut-pane-oll">
+      <p style="margin:0;font-size:0.78rem;color:var(--muted);line-height:1.6">
+        頂面定向 (Orientation of Last Layer)：將頂層全部翻成同色。點「演練」可從復原狀態擺出該題型，點公式即可執行解開（支援雙層 r/l/u/d/f、中層 M/S 與轉體 x/y 自動換算）。
+      </p>
+      <div class="alg-grid" id="ollGrid"></div>
+    </div>
+
+    <div class="tut-pane" id="tut-pane-pll">
+      <p style="margin:0;font-size:0.78rem;color:var(--muted);line-height:1.6">
+        頂層置換 (Permutation of Last Layer)：在頂面同色後，將頂層邊塊與角塊移回正確位置。圖示箭頭代表公式對頂層塊的置換軌跡；點「演練」可擺出待解狀態。
+      </p>
+      <div class="alg-grid" id="pllGrid"></div>
+    </div>
   </div>
 </div>
 
@@ -815,7 +960,7 @@
   function setBusy(on) {
     // 轉動按鈕保持可點：快速連點交由 queue 依序消化，不直接丟棄輸入。
     // 只鎖定會與執行中佇列衝突的操作（求解 / 重設 / 公式）。
-    document.querySelectorAll('#solveBtn, #resetBtn, .preset-item').forEach(b => {
+    document.querySelectorAll('#solveBtn, #resetBtn, .preset-item, .alg-play, .alg-setup').forEach(b => {
       b.disabled = on;
     });
     $('cubeStage').setAttribute('aria-busy', on ? 'true' : 'false');
@@ -829,11 +974,26 @@
 
   function enqueue(seq, options = { record: true, duration: 190 }) {
     if (!seq.length) return;
-    queue.push(...seq.map(move => ({ move, ...options })));
+    queue.push(...seq.map(item =>
+      typeof item === 'object' ? { ...options, ...item } : { move: item, ...options }
+    ));
     void drain();
   }
 
   async function execute(job) {
+    if (job.onStart) job.onStart();
+    if (job.instantReset) {
+      initStickerState();
+      build3DCube();
+      resetGraph();
+      animState = null;
+      updateUI();
+      return;
+    }
+    if (job.waitMs) {
+      await new Promise(r => setTimeout(r, job.waitMs));
+      return;
+    }
     const { move, record } = job;
     const duration = job.duration / speedFactor;
     haptic(15);
@@ -852,7 +1012,7 @@
     startProjectionAnimation(pairs, duration);
 
     const selected = cubies.filter(c => c.p[axIdx] === layer);
-    const animPromises = selected.map(c => {
+    const targets = selected.map(c => {
       const nextO = mul(R, c.o);
       const nextP = mv(R, c.p);
       const from = toMatrix3d(c.o, c.p);
@@ -860,15 +1020,19 @@
       const anim = c.e.animate([{ transform: from }, { transform: to }], {
         duration, easing: 'cubic-bezier(0.2, 0.85, 0.25, 1)', fill: 'forwards'
       });
-      return anim.finished.then(() => {
-        c.p = nextP;
-        c.o = nextO;
-        c.e.style.transform = to;
-        anim.cancel();
-      }, err => { anim.cancel(); throw err; });
+      return { c, nextO, nextP, to, anim };
     });
 
-    await Promise.all(animPromises);
+    await Promise.race([
+      Promise.all(targets.map(t => t.anim.finished.catch(() => {}))),
+      new Promise(r => setTimeout(r, duration + 60))
+    ]);
+    for (const { c, nextO, nextP, to, anim } of targets) {
+      c.p = nextP;
+      c.o = nextO;
+      c.e.style.transform = to;
+      try { anim.cancel(); } catch {}
+    }
 
     const prevState = { ...stickerState };
     pairs.forEach(([src, dst]) => { stickerState[dst] = prevState[src]; });
@@ -906,6 +1070,7 @@
     }
 
     updateUI();
+    if (job.onDone) job.onDone();
   }
 
   async function drain() {
@@ -1112,6 +1277,7 @@
   const stage = $('cubeStage');
 
   stage.addEventListener('pointerdown', e => {
+    if (e.target.closest('#algRunnerBar')) return;
     isDragging = true;
     if (springAnimId) cancelAnimationFrame(springAnimId);
     lastX = e.clientX; lastY = e.clientY;
@@ -1137,7 +1303,34 @@
   stage.addEventListener('pointercancel', onPointerRelease);
   stage.addEventListener('dblclick', () => { springBackToHome(); haptic(20); });
 
-  // 拓撲節點拖拽
+  // 拓撲節點拖拽與點擊動態導航 (BFS 尋找最短已探索路徑並動態播放)
+  let graphDownPos = null;
+  function findGraphPath(startKey, targetKey) {
+    if (startKey === targetKey) return [];
+    const adj = new Map();
+    const addDir = (u, v, m) => {
+      if (!adj.has(u)) adj.set(u, []);
+      adj.get(u).push({ to: v, move: m });
+    };
+    for (const e of graphEdges) {
+      addDir(e.from, e.to, e.move);
+      addDir(e.to, e.from, inverseMove(e.move));
+    }
+    const visited = new Set([startKey]);
+    const q = [{ key: startKey, path: [] }];
+    while (q.length) {
+      const { key, path } = q.shift();
+      for (const next of (adj.get(key) || [])) {
+        if (visited.has(next.to)) continue;
+        const nextPath = [...path, next.move];
+        if (next.to === targetKey) return nextPath;
+        visited.add(next.to);
+        q.push({ key: next.to, path: nextPath });
+      }
+    }
+    return null;
+  }
+
   graphCanvas.addEventListener('pointerdown', e => {
     const rect = graphCanvas.getBoundingClientRect();
     const mx = (e.clientX - rect.left) - graphCanvas.clientWidth / 2;
@@ -1145,6 +1338,7 @@
     for (const n of graphNodes.values()) {
       if (Math.hypot(n.x - mx, n.y - my) < 18) {
         draggedNode = n;
+        graphDownPos = { x: e.clientX, y: e.clientY, node: n };
         graphCanvas.setPointerCapture(e.pointerId);
         break;
       }
@@ -1156,7 +1350,27 @@
     draggedNode.x = (e.clientX - rect.left) - graphCanvas.clientWidth / 2;
     draggedNode.y = (e.clientY - rect.top) - graphCanvas.clientHeight / 2;
   });
-  const endGraphDrag = () => { draggedNode = null; };
+  const endGraphDrag = e => {
+    if (graphDownPos && e && e.type === 'pointerup') {
+      const moved = Math.hypot(e.clientX - graphDownPos.x, e.clientY - graphDownPos.y);
+      const target = graphDownPos.node;
+      if (moved < 6 && target && !processing) {
+        if (target.key === currentNodeKey) {
+          toast(`目前已處於狀態 ${target.label}`);
+        } else {
+          const curLabel = graphNodes.get(currentNodeKey)?.label || '當前';
+          const path = findGraphPath(currentNodeKey, target.key);
+          if (path && path.length) {
+            const title = `狀態導航 ${curLabel} → ${target.label}`;
+            toast(`${title}：共 ${path.length} 步動態轉移`, 'ok');
+            startSolutionRunner(title, `${path.length} 步路徑`, path, { duration: 170 });
+          }
+        }
+      }
+    }
+    draggedNode = null;
+    graphDownPos = null;
+  };
   graphCanvas.addEventListener('pointerup', endGraphDrag);
   graphCanvas.addEventListener('pointercancel', endGraphDrag);
 
@@ -1242,10 +1456,12 @@
 
   $('resetBtn').addEventListener('click', () => {
     queue.length = 0;
+    runnerSession = null;
     initStickerState();
     build3DCube();
     resetGraph();
     animState = null;
+    $('algRunnerBar').classList.remove('active');
     $('projHint').textContent = '等候轉動';
     $('orderVal').textContent = 1;
     $('cyclesVal').textContent = 0;
@@ -1285,7 +1501,237 @@
       text: '轉 U 找出已對上的稜塊，把它放在後方，做一次公式；若方向相反就再做一次。四塊都沒對上時先做一次。',
       algs: [['稜塊三循環 (U-perm)', 'R U′ R U R U R U′ R′ U′ R2']] }
   ];
-  const expandAlg = alg => alg.split(' ').flatMap(t => t.endsWith('2') ? [t[0], t[0]] : [t]);
+  // 進階轉動解析器：支援雙層 (r,l,u,d,f,b)、中層 (M,E,S)、整體轉體 (x,y,z) 與括號重複 (x2,x3)
+  const NORMAL_TO_FACE = {
+    '0,-1,0': 'U', '0,1,0': 'D',
+    '-1,0,0': 'L', '1,0,0': 'R',
+    '0,0,1': 'F',  '0,0,-1': 'B'
+  };
+  const FACE_NORMALS = {
+    U: [0, -1, 0], D: [0, 1, 0],
+    L: [-1, 0, 0], R: [1, 0, 0],
+    F: [0, 0, 1],  B: [0, 0, -1]
+  };
+  function expandExtendedAlg(algStr) {
+    let s = algStr.replace(/\+/g, ' ').replace(/['’′]/g, "'");
+    let prev;
+    do {
+      prev = s;
+      s = s.replace(/[\(\[]([^\(\)\[\]]+)[\)\]]\s*x(\d+)/g, (_, inner, count) =>
+        Array(Number(count)).fill(inner).join(' ')
+      );
+      s = s.replace(/[\(\[]([^\(\)\[\]]+)[\)\]]/g, '$1');
+    } while (s !== prev);
+
+    const tokens = s.match(/[UDFBLRMESudfblrxyz](?:2|'2|2'|')?/g) || [];
+    const rawSteps = [];
+    const pushWithMod = (baseMoves, mod) => {
+      if (mod === '2' || mod === "'2" || mod === "2'") {
+        for (let k = 0; k < 2; k++) rawSteps.push(...baseMoves);
+      } else if (mod === "'") {
+        for (let i = baseMoves.length - 1; i >= 0; i--) {
+          const m = baseMoves[i];
+          rawSteps.push(m.endsWith("'") ? m[0] : m + "'");
+        }
+      } else {
+        rawSteps.push(...baseMoves);
+      }
+    };
+
+    for (const tok of tokens) {
+      const ch = tok[0], mod = tok.slice(1);
+      if ('UDFBLRxyz'.includes(ch)) pushWithMod([ch], mod);
+      else if (ch === 'r') pushWithMod(['L', 'x'], mod);
+      else if (ch === 'l') pushWithMod(['R', "x'"], mod);
+      else if (ch === 'u') pushWithMod(['D', 'y'], mod);
+      else if (ch === 'd') pushWithMod(['U', "y'"], mod);
+      else if (ch === 'f') pushWithMod(['B', 'z'], mod);
+      else if (ch === 'b') pushWithMod(['F', "z'"], mod);
+      else if (ch === 'M') pushWithMod(['R', "L'", "x'"], mod);
+      else if (ch === 'E') pushWithMod(['U', "D'", "y'"], mod);
+      else if (ch === 'S') pushWithMod(["F'", 'B', 'z'], mod);
+    }
+
+    const transpose = m => m[0].map((_, j) => m.map(r => r[j]));
+    let ori = I();
+    const rotSpecs = { x: ['x', 1], y: ['y', -1], z: ['z', 1] };
+    const finalMoves = [];
+    for (const step of rawSteps) {
+      const base = step[0], isPrime = step.endsWith("'");
+      if (rotSpecs[base]) {
+        const [axis, clock] = rotSpecs[base];
+        ori = mul(rotMatrix(axis, isPrime ? -clock : clock), ori);
+      } else {
+        const cNormal = mv(transpose(ori), FACE_NORMALS[base]);
+        const cFace = NORMAL_TO_FACE[cNormal.join(',')];
+        finalMoves.push(isPrime ? cFace + '′' : cFace);
+      }
+    }
+    return finalMoves;
+  }
+
+  function simulateMoves(moves) {
+    const st = Object.fromEntries(FACES.flatMap(f => Array.from({length:9}, (_, i) => [f+i, f+i])));
+    for (const move of moves) {
+      const base = move[0], [axis, layer, clock] = specs[base];
+      const dir = move.includes('′') ? -clock : clock;
+      const R = rotMatrix(axis, dir);
+      const axIdx = { x:0, y:1, z:2 }[axis];
+      const prev = { ...st };
+      for (const s of Object.values(slots)) {
+        if (s.p[axIdx] === layer) {
+          const np = mv(R, s.p), nn = mv(R, s.n);
+          const dst = slotLookup.get([...np, ...nn].join(','));
+          st[dst] = prev[s.id];
+        }
+      }
+    }
+    return st;
+  }
+
+  // OLL (40 組) 與 PLL (14 組) 完整公式庫（依附圖順序排列）
+  const OLL_CASES = [
+    { id: 'O1',  title: 'O1',  algs: ["(R U2 R') (R' F R F') U2 (R' F R F')"] },
+    { id: 'O35', title: 'O35', algs: ["(R U2 R') (R' F R F') (R U2 R')"] },
+    { id: 'O55', title: 'O55', algs: ["R U2 R2 (U' R U' R') U2 (F R F')"] },
+    { id: 'O18', title: 'O18', algs: ["(R U2 R') (R' F R F') U2 M' U R U' r'"] },
+    { id: 'O53', title: 'O53', algs: ["(r' U' r) (R' U' R U)x2 (r' U r)"] },
+    { id: 'O15', title: 'O15', algs: ["(r' U' r) (R' U' R U) (r' U r)", "L' B' L (R' U' R U) L' B L"] },
+    { id: 'O56', title: 'O56 (= O53⁻¹)', algs: ["(r' U' r) (U' R' U R)x2 (r' U r)"] },
+    { id: 'O52', title: 'O52', algs: ["R' (F' U' F U') (R U R' U) R"] },
+    { id: 'O17', title: 'O17', algs: ["(R U R' U) (R' F R F') U2 (R' F R F')", "f (R U R' U') f' U' (R U R' U') (R' F R F')"] },
+    { id: 'O20', title: 'O20', algs: ["M U (R U R' U') M2 (U R U' r')"] },
+    { id: 'O34', title: 'O34', algs: ["(R U R' U') B' (R' F R F') B"] },
+    { id: 'O46', title: 'O46', algs: ["R' U' (R' F R F') U R"] },
+    { id: 'O7',  title: 'O7',  algs: ["r U R' U R U2 r'"] },
+    { id: 'O41', title: 'O41', algs: ["R U' R' U2 R U y (R U' R' U') F'"] },
+    { id: 'O3',  title: 'O3: O44 + U + O45', algs: ["F (U R U' R') F' U F (R U R' U') F'"] },
+    { id: 'O9',  title: 'O9',  algs: ["R' U' R y (r U' r' U) r U r'"] },
+    { id: 'O2',  title: 'O2',  algs: ["F (R U R' U') F' + f (R U R' U') f'"] },
+    { id: 'O19', title: 'O19', algs: ["M U (R U R' U') M' (R' F R F')"] },
+    { id: 'O51', title: 'O51', algs: ["F (U R U' R')x2 F'"] },
+    { id: 'O12', title: 'O12', algs: ["M' R' U' R U' R' U2 R U' M"] },
+    { id: 'O14', title: 'O14', algs: ["l' U l (U l' U' l) y L U' L'"] },
+    { id: 'O38', title: 'O38', algs: ["(L U L' U) (L U' L' U') (L' B L B')"] },
+    { id: 'O48', title: 'O48', algs: ["F (R U R' U')x2 F'"] },
+    { id: 'O49', title: 'O49', algs: ["R B' R2 F R2 B R2 F' R"] },
+    { id: 'O6',  title: 'O6',  algs: ["r U2 (R' U' R U') r'", "L F2 R' F' R F' L'"] },
+    { id: 'O40', title: 'O40', algs: ["R' F (R U R' U') F' U R"] },
+    { id: 'O32', title: 'O32', algs: ["L U F' (U' L' U L) F L'", "y2 S + (R U R' U') (R' F R f')"] },
+    { id: 'O44', title: 'O44', algs: ["F (U R U' R') F'"] },
+    { id: 'O57', title: 'O57', algs: ["(R U R' U') M' (U R U' r')"] },
+    { id: 'O28', title: 'O28', algs: ["(r U R' U') M (U R U' R')"] },
+    { id: 'O37', title: 'O37', algs: ["(F R' F' R) (U R U' R')", "F R U' R' U' R U R' F'"] },
+    { id: 'O29', title: 'O29', algs: ["(R U R') (U' R U' R') (F' U' F) (R U R')"] },
+    { id: 'O45', title: 'O45', algs: ["F (R U R' U') F'"] },
+    { id: 'O33', title: 'O33', algs: ["(R U R' U') (R' F R F')"] },
+    { id: 'O21', title: 'O21', algs: ["F (R U R' U')x3 F'"] },
+    { id: 'O25', title: 'O25', algs: ["R' F' L' F R F' L F"] },
+    { id: 'O27', title: 'O27', algs: ["R' U2 R U R' U R"] },
+    { id: 'O24', title: 'O24', algs: ["R' F' L F R F' L' F"] },
+    { id: 'O22', title: 'O22 (O27x2 or ...)', algs: ["R U2 (R2 U' R2 U' R2) U2 R"] },
+    { id: 'O23', title: 'O23', algs: ["(R2 D R' U2) (R D' R' U2) R'"] }
+  ];
+
+  const PLL_CASES = [
+    { id: 'G1', title: 'G1 perm', algs: ["R2 u R' U R' U' R u' R2 [y' R' U R]"] },
+    { id: 'G2', title: 'G2 perm', algs: ["[R' U' R y] R2 u R' U R U' R u' R2"] },
+    { id: 'F',  title: 'F perm (F=2)', algs: ["(R' U2 R' d') (R' F' R2) (U' R' U) (R' F R U' F)"] },
+    { id: 'V',  title: 'V perm (V=1)', algs: ["(R' U R' d') (R' F' R2) (U' R' U) (R' F R F)"] },
+    { id: 'R',  title: 'R perm', algs: ["(L U2 L' U2) (L F') (L' U' L U) (L F) L2 U"] },
+    { id: 'Y',  title: 'Y perm = T⁻¹ + T', algs: ["(F R U' R' U' R U R' F') (R U R' U' R' F R F')"] },
+    { id: 'E',  title: 'E perm [or just A1+A2]', algs: ["x' (R U' R') D (R U R') u2 (R' U R) D (R' U' R)"] },
+    { id: 'N',  title: 'N perm', algs: ["(L U' R U2 L' U R')x2 U"] },
+    { id: 'J',  title: 'J perm', algs: ["R' U L' U2 R U' R' U2 R L U'"] },
+    { id: 'Z',  title: 'Z perm', algs: ["M2 U M2 U M' U2 M2 U2 M' U2"] },
+    { id: 'U',  title: 'U perm', algs: ["R2 U (R U R' U') R' U' R' U R'", "F2 U M' U2 M U F2"] },
+    { id: 'A',  title: 'A perm', algs: ["r' U L' D2 L U' L' D2 L2"] },
+    { id: 'H',  title: 'H perm', algs: ["M2 U M2 U2 M2 U M2"] },
+    { id: 'T',  title: 'T perm', algs: ["(R U R' U') (R' F) (R2 U' R') U' (R U R' F')"] }
+  ];
+
+  // 預先由逆運算推導每個 OLL 圖示與 PLL 置換箭頭
+  for (const item of OLL_CASES) {
+    const moves = expandExtendedAlg(item.algs[0]);
+    const inv = moves.slice().reverse().map(inverseMove);
+    const st = simulateMoves(inv);
+    const isU = id => st[id][0] === 'U';
+    item.pattern = {
+      u: Array.from({length: 9}, (_, i) => isU('U' + i)),
+      topB: ['B2', 'B1', 'B0'].map(isU),
+      bottomF: ['F0', 'F1', 'F2'].map(isU),
+      leftL: ['L0', 'L1', 'L2'].map(isU),
+      rightR: ['R2', 'R1', 'R0'].map(isU)
+    };
+  }
+  for (const item of PLL_CASES) {
+    const moves = expandExtendedAlg(item.algs[0]);
+    const st = simulateMoves(moves);
+    const arrows = [];
+    for (let i = 0; i < 9; i++) {
+      const dst = 'U' + i, src = st[dst];
+      if (src !== dst) arrows.push([Number(src[1]), i]);
+    }
+    item.arrows = arrows;
+  }
+
+  function renderOLLSvg(pat) {
+    const cells = [];
+    for (let r = 0; r < 3; r++) {
+      for (let c = 0; c < 3; c++) {
+        const fill = pat.u[r * 3 + c] ? '#ffd400' : '#1b2e44';
+        cells.push(`<rect x="${9 + c * 12}" y="${9 + r * 12}" width="11" height="11" rx="1.5" fill="${fill}" stroke="#07101d" stroke-width="1"/>`);
+      }
+    }
+    for (let i = 0; i < 3; i++) {
+      if (pat.topB[i]) cells.push(`<rect x="${10 + i * 12}" y="4" width="9" height="3.5" rx="1" fill="#ffd400"/>`);
+      if (pat.bottomF[i]) cells.push(`<rect x="${10 + i * 12}" y="46.5" width="9" height="3.5" rx="1" fill="#ffd400"/>`);
+      if (pat.leftL[i]) cells.push(`<rect x="4" y="${10 + i * 12}" width="3.5" height="9" rx="1" fill="#ffd400"/>`);
+      if (pat.rightR[i]) cells.push(`<rect x="46.5" y="${10 + i * 12}" width="3.5" height="9" rx="1" fill="#ffd400"/>`);
+    }
+    return `<svg viewBox="0 0 54 54" width="52" height="52" aria-hidden="true">${cells.join('')}</svg>`;
+  }
+
+  function renderPLLSvg(arrows, id) {
+    const grid = [];
+    for (let r = 0; r < 3; r++) {
+      for (let c = 0; c < 3; c++) {
+        grid.push(`<rect x="${6 + c * 14}" y="${6 + r * 14}" width="13" height="13" rx="1.5" fill="#e6c300" stroke="#07101d" stroke-width="1"/>`);
+      }
+    }
+    const center = idx => [12.5 + (idx % 3) * 14, 12.5 + Math.floor(idx / 3) * 14];
+    const lines = arrows.map(([s, d]) => {
+      const [x1, y1] = center(s), [x2, y2] = center(d);
+      const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1;
+      const sx = x1 + (dx / len) * 2.5, sy = y1 + (dy / len) * 2.5;
+      const ex = x2 - (dx / len) * 3.5, ey = y2 - (dy / len) * 3.5;
+      const isCorner = [0, 2, 6, 8].includes(s);
+      const color = isCorner ? '#1b4fd8' : '#b91c1c';
+      return `<line x1="${sx.toFixed(1)}" y1="${sy.toFixed(1)}" x2="${ex.toFixed(1)}" y2="${ey.toFixed(1)}" stroke="${color}" stroke-width="1.8" marker-end="url(#arr-${id}-${isCorner ? 'c' : 'e'})"/>`;
+    });
+    return `<svg viewBox="0 0 54 54" width="52" height="52" aria-hidden="true">
+      <defs>
+        <marker id="arr-${id}-e" viewBox="0 0 6 6" refX="4.5" refY="3" markerWidth="4" markerHeight="4" orient="auto">
+          <path d="M0,0.5 L5.5,3 L0,5.5 Z" fill="#b91c1c"/>
+        </marker>
+        <marker id="arr-${id}-c" viewBox="0 0 6 6" refX="4.5" refY="3" markerWidth="4" markerHeight="4" orient="auto">
+          <path d="M0,0.5 L5.5,3 L0,5.5 Z" fill="#1b4fd8"/>
+        </marker>
+      </defs>
+      ${grid.join('')}${lines.join('')}
+    </svg>`;
+  }
+
+  function matchCurrentOLL(pat) {
+    if (!solved(p => p[1] >= 0)) return false;
+    const isU = id => stickerState[id] === COLORS.U;
+    return pat.u.every((v, i) => v === isU('U' + i)) &&
+      pat.topB.every((v, i) => v === isU(['B2', 'B1', 'B0'][i])) &&
+      pat.bottomF.every((v, i) => v === isU(['F0', 'F1', 'F2'][i])) &&
+      pat.leftL.every((v, i) => v === isU(['L0', 'L1', 'L2'][i])) &&
+      pat.rightR.every((v, i) => v === isU(['R2', 'R1', 'R0'][i]));
+  }
+
   function renderTutorial() {
     let firstTodo = -1;
     $('tutorialSteps').innerHTML = TUTORIAL.map((st, i) => {
@@ -1298,12 +1744,268 @@
         ${st.algs.map(([label, alg]) => `<button class="preset-item" data-alg="${alg}"${processing ? ' disabled' : ''}>${label}：${alg}</button>`).join('')}
       </details>`;
     }).join('');
+
+    $('ollGrid').innerHTML = OLL_CASES.map(item => {
+      const matched = matchCurrentOLL(item.pattern);
+      return `<div class="alg-card${matched ? ' matched' : ''}" data-card-alg="${item.algs[0]}" data-card-title="${item.title}" title="點擊直接展示此狀態的動態解法">
+        <div class="alg-diagram">${renderOLLSvg(item.pattern)}</div>
+        <div class="alg-info">
+          <div class="alg-header">
+            <span class="alg-id">${item.title}</span>
+            ${matched ? '<span class="alg-tag">目前型態</span>' : ''}
+            <button class="alg-setup" data-setup="${item.algs[0]}" data-title="${item.title}" title="僅擺出此待解狀態"${processing ? ' disabled' : ''}>擺出狀態</button>
+          </div>
+          <div class="alg-btns">
+            ${item.algs.map(alg => `<div class="alg-btn-row"><button class="alg-play" data-alg="${alg}" data-title="${item.title}"${processing ? ' disabled' : ''}>▶ ${alg}</button></div>`).join('')}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+
+    $('pllGrid').innerHTML = PLL_CASES.map(item => {
+      return `<div class="alg-card" data-card-alg="${item.algs[0]}" data-card-title="${item.title}" title="點擊直接展示此狀態的動態解法">
+        <div class="alg-diagram">${renderPLLSvg(item.arrows, item.id)}</div>
+        <div class="alg-info">
+          <div class="alg-header">
+            <span class="alg-id">${item.title}</span>
+            <button class="alg-setup" data-setup="${item.algs[0]}" data-title="${item.title}" title="僅擺出此待解狀態"${processing ? ' disabled' : ''}>擺出狀態</button>
+          </div>
+          <div class="alg-btns">
+            ${item.algs.map(alg => `<div class="alg-btn-row"><button class="alg-play" data-alg="${alg}" data-title="${item.title}"${processing ? ' disabled' : ''}>▶ ${alg}</button></div>`).join('')}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
   }
-  $('tutorialSteps').addEventListener('click', e => {
-    const btn = e.target.closest('[data-alg]');
-    if (!btn) return;
+
+  // 動態解法控制器：支援「單步模式（每走一步自動停止，點擊繼續再播放一步）」與「連續播放」自由切換
+  let stepByStepMode = true; // 預設開啟單步停頓模式，方便觀察每一步變化
+  let runnerSession = null;
+
+  function syncRunnerControls() {
+    const modeBtn = $('runnerModeBtn');
+    const nextBtn = $('runnerNextBtn');
+    const autoBtn = $('runnerAutoBtn');
+    if (!modeBtn || !nextBtn || !autoBtn) return;
+
+    modeBtn.classList.toggle('step-mode-on', stepByStepMode);
+    modeBtn.textContent = stepByStepMode ? '🎯 單步模式: 開' : '🔁 單步模式: 關';
+
+    if (!runnerSession) {
+      nextBtn.disabled = true;
+      autoBtn.disabled = true;
+      return;
+    }
+    const { moves, cursor, running } = runnerSession;
+    const done = cursor >= moves.length;
+    nextBtn.disabled = done || running;
+    nextBtn.textContent = done ? '✅ 已完成' : `▶ 繼續下一步 (${cursor + 1}/${moves.length})`;
+    autoBtn.disabled = done;
+    autoBtn.textContent = (!stepByStepMode && running) ? '⏸ 暫停' : '⏩ 連播';
+  }
+
+  function renderRunnerSteps() {
+    if (!runnerSession) return;
+    const { baseTitle, formula, moves, cursor, running } = runnerSession;
+    const bar = $('algRunnerBar');
+    bar.classList.add('active');
+    const done = cursor >= moves.length;
+    $('algRunnerTitle').textContent = done
+      ? `${baseTitle} ✅ 完成`
+      : (running ? `${baseTitle} (${cursor + 1}/${moves.length})` : `${baseTitle} · 等待下一步 (${cursor}/${moves.length})`);
+    $('algRunnerFormula').textContent = formula;
+
+    const pills = $('algRunnerSteps').querySelectorAll('.alg-step-pill');
+    if (pills.length !== moves.length) {
+      $('algRunnerSteps').innerHTML = moves.map((m, idx) =>
+        `<span class="alg-step-pill" data-step-idx="${idx}">${m}</span>`
+      ).join('');
+    }
+    $('algRunnerSteps').querySelectorAll('.alg-step-pill').forEach((p, idx) => {
+      p.classList.toggle('done', idx < cursor);
+      p.classList.toggle('active', running && idx === cursor);
+      p.classList.toggle('next', !running && idx === cursor);
+      if (idx === cursor) p.scrollIntoView({ block: 'nearest', inline: 'center' });
+    });
+    syncRunnerControls();
+  }
+
+  function stepSolutionRunner() {
+    if (!runnerSession || runnerSession.running) return;
+    if (runnerSession.cursor >= runnerSession.moves.length) {
+      renderRunnerSteps();
+      return;
+    }
+    runnerSession.running = true;
+    renderRunnerSteps();
+    const move = runnerSession.moves[runnerSession.cursor];
+    enqueue([
+      {
+        move,
+        record: true,
+        duration: runnerSession.duration,
+        onDone: () => {
+          if (!runnerSession) return;
+          runnerSession.cursor++;
+          runnerSession.running = false;
+          renderRunnerSteps();
+          if (!stepByStepMode && runnerSession.cursor < runnerSession.moves.length) {
+            stepSolutionRunner();
+          }
+        }
+      }
+    ]);
+  }
+
+  function startSolutionRunner(baseTitle, formula, moves, options = {}) {
+    const { duration = 210, initialDelay = 0, playFirstStep = true } = options;
+    queue.length = 0;
+    runnerSession = {
+      baseTitle,
+      formula,
+      moves,
+      cursor: 0,
+      duration,
+      running: false
+    };
+    renderRunnerSteps();
+    if (playFirstStep && moves.length) {
+      if (initialDelay > 0) {
+        runnerSession.running = true;
+        syncRunnerControls();
+        setTimeout(() => {
+          if (!runnerSession) return;
+          runnerSession.running = false;
+          stepSolutionRunner();
+        }, initialDelay);
+      } else {
+        stepSolutionRunner();
+      }
+    }
+  }
+
+  $('runnerModeBtn').addEventListener('click', e => {
+    e.stopPropagation();
+    stepByStepMode = !stepByStepMode;
+    syncRunnerControls();
+    toast(stepByStepMode ? '已切換為單步模式：每播放一步後自動停止' : '已切換為連播模式');
+  });
+
+  $('runnerNextBtn').addEventListener('click', e => {
+    e.stopPropagation();
+    stepByStepMode = true;
+    stepSolutionRunner();
+  });
+
+  $('runnerAutoBtn').addEventListener('click', e => {
+    e.stopPropagation();
+    if (!runnerSession) return;
+    if (!stepByStepMode && runnerSession.running) {
+      // 連播中點擊 -> 轉為單步模式，當前這一步完成後即停下
+      stepByStepMode = true;
+      syncRunnerControls();
+      toast('將於本步完成後暫停');
+    } else {
+      stepByStepMode = false;
+      syncRunnerControls();
+      stepSolutionRunner();
+    }
+  });
+
+  $('runnerCloseBtn').addEventListener('click', e => {
+    e.stopPropagation();
+    queue.length = 0;
+    runnerSession = null;
+    $('algRunnerBar').classList.remove('active');
+  });
+
+  // 點擊狀態或公式：自動對齊至該待解狀態（若尚未處於該狀態），並啟動支援單步停頓的動態解法
+  function playDynamicCaseSolution(title, alg, forceSetup = true) {
     closeTutorial();
-    enqueue(expandAlg(btn.dataset.alg), { record: true, duration: 190 });
+    queue.length = 0;
+    const solveMoves = expandExtendedAlg(alg);
+    if (!solveMoves.length) return;
+
+    if (forceSetup) {
+      const invMoves = solveMoves.slice().reverse().map(inverseMove);
+      initStickerState();
+      build3DCube();
+      resetGraph();
+      animState = null;
+      for (const m of invMoves) {
+        const pairs = getMovePermutation(m);
+        const prev = { ...stickerState };
+        pairs.forEach(([src, dst]) => { stickerState[dst] = prev[src]; });
+        const base = m[0], [axis, layer, clock] = specs[base];
+        const dir = m.includes('′') ? -clock : clock;
+        const R = rotMatrix(axis, dir);
+        const axIdx = { x:0, y:1, z:2 }[axis];
+        cubies.filter(c => c.p[axIdx] === layer).forEach(c => {
+          c.o = mul(R, c.o);
+          c.p = mv(R, c.p);
+          c.e.style.transform = toMatrix3d(c.o, c.p);
+        });
+      }
+      currentNodeKey = getStateKey();
+      graphNodes.clear();
+      graphNodes.set(currentNodeKey, {
+        id: 0, key: currentNodeKey, label: title.split(' ')[0], depth: 0,
+        x: 0, y: 0, vx: 0, vy: 0, isSolved: false
+      });
+      updateUI();
+      startSolutionRunner(`${title} · 動態解法`, alg, solveMoves, { duration: 210, initialDelay: 320, playFirstStep: true });
+    } else {
+      startSolutionRunner(`${title} · 動態解法`, alg, solveMoves, { duration: 210, initialDelay: 0, playFirstStep: true });
+    }
+  }
+
+  $('tutorialModal').addEventListener('click', e => {
+    const tabBtn = e.target.closest('[data-tut-tab]');
+    if (tabBtn) {
+      const target = tabBtn.dataset.tutTab;
+      document.querySelectorAll('.tut-tab').forEach(b => {
+        const active = b === tabBtn;
+        b.classList.toggle('active', active);
+        b.setAttribute('aria-selected', String(active));
+      });
+      document.querySelectorAll('.tut-pane').forEach(p => {
+        p.classList.toggle('active', p.id === `tut-pane-${target}`);
+      });
+      return;
+    }
+    const setupBtn = e.target.closest('[data-setup]');
+    if (setupBtn) {
+      e.stopPropagation();
+      const alg = setupBtn.dataset.setup;
+      const title = setupBtn.dataset.title || '題型';
+      closeTutorial();
+      queue.length = 0;
+      initStickerState();
+      build3DCube();
+      resetGraph();
+      animState = null;
+      updateUI();
+      const solveMoves = expandExtendedAlg(alg);
+      const inv = solveMoves.slice().reverse().map(inverseMove);
+      startSolutionRunner(`${title} · 動態解法`, alg, solveMoves, { duration: 210, playFirstStep: false });
+      toast(`已擺出 ${title} 待解狀態，點「繼續下一步」即可逐步解開`);
+      enqueue(inv, { record: true, duration: 95 });
+      return;
+    }
+    const algBtn = e.target.closest('[data-alg]');
+    if (algBtn) {
+      e.stopPropagation();
+      const alg = algBtn.dataset.alg;
+      const title = algBtn.dataset.title || '公式';
+      const inOllPll = Boolean(algBtn.closest('#ollGrid, #pllGrid'));
+      const shouldSetup = inOllPll && getStateKey() === SOLVED_KEY;
+      playDynamicCaseSolution(title, alg, shouldSetup);
+      return;
+    }
+    const card = e.target.closest('[data-card-alg]');
+    if (card && !processing) {
+      playDynamicCaseSolution(card.dataset.cardTitle, card.dataset.cardAlg, true);
+    }
   });
   let tutorialFocus = null;
   function openTutorial() {
@@ -1391,7 +2093,7 @@
     const seq = steps.flatMap(kociembaMoveToApp);
     if (!seq.length) { toast('解法解析失敗', 'err'); return; }
     toast(`Kociemba 解出 ${steps.length} 步`, 'ok');
-    enqueue(seq, { record: true, duration: 120 });
+    startSolutionRunner(`Kociemba 兩階段解法 (${steps.length} 步)`, solution.trim(), seq, { duration: 140 });
   }
 
   function getSolver() {

@@ -1,5 +1,5 @@
 // 更新版本號即可讓所有使用者取得新版快取
-const VERSION = 'v1';
+const VERSION = 'v2';
 const CACHE = 'rubi-cube-' + VERSION;
 const ASSETS = [
   './', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png',
