@@ -456,7 +456,8 @@
       <span class="badge">Kociemba 完整版</span>
     </div>
     <div class="header-actions">
-      <!-- 視角工具：自動回正 / 手動回正 / 兩軸鎖定 -->
+      <!-- 視角工具：自動回正 / 手動回正 / 兩軸鎖定 / 配色切換 -->
+      <button class="btn-icon" id="toggleScheme" title="切換黃底白上／白底黃上配色">🎨 配色: 黃底白上</button>
       <button class="btn-icon active" id="toggleSpring" aria-pressed="true">🧲 自動回正: 開</button>
       <button class="btn-icon" id="recenterBtn">↺ 立即回正</button>
       <button class="btn-icon" id="lockVertical" aria-pressed="false">🔒 垂直鎖定</button>
@@ -654,7 +655,7 @@
     </div>
 
     <div class="tut-pane active" id="tut-pane-lbl">
-      <p style="margin:0;font-size:0.78rem;color:var(--muted);line-height:1.6">
+      <p id="lblIntroText" style="margin:0;font-size:0.78rem;color:var(--muted);line-height:1.6">
         黃色 (D) 在底、白色 (U) 在頂，綠色 (F) 朝向自己。✅ 會即時檢查目前方塊是否完成該步；點公式會直接在方塊上播放。
       </p>
       <div id="tutorialSteps" style="display:grid;gap:8px"></div>
@@ -681,8 +682,21 @@
 <script>
 (()=>{
   const $ = id => document.getElementById(id);
-  const COLORS = { U:'#fdfefe', D:'#ffd400', F:'#10b981', B:'#2563eb', R:'#ef4444', L:'#f97316' };
-  const HEX_TO_FACE = Object.fromEntries(Object.entries(COLORS).map(([f, c]) => [c, f]));
+  const COLOR_SCHEMES = {
+    yellowBottom: {
+      label: '黃底白上',
+      dName: '黃色', uName: '白色',
+      colors: { U:'#fdfefe', D:'#ffd400', F:'#10b981', B:'#2563eb', R:'#ef4444', L:'#f97316' }
+    },
+    whiteBottom: {
+      label: '白底黃上',
+      dName: '白色', uName: '黃色',
+      colors: { U:'#ffd400', D:'#fdfefe', F:'#10b981', B:'#2563eb', R:'#f97316', L:'#ef4444' }
+    }
+  };
+  let currentSchemeKey = 'yellowBottom';
+  let COLORS = { ...COLOR_SCHEMES[currentSchemeKey].colors };
+  let HEX_TO_FACE = Object.fromEntries(Object.entries(COLORS).map(([f, c]) => [c, f]));
   const FACES = ['U','R','F','D','L','B'];
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -772,10 +786,29 @@
     stickerState = Object.fromEntries(FACES.flatMap(f => Array.from({length:9}, (_, i) => [f+i, COLORS[f]])));
   }
   function getStateKey(state = stickerState) {
-    // 以分隔符串接，避免未來改用多字元色碼時產生碰撞
-    return slotList.map(id => state[id]).join('|');
+    // 以邏輯面名 (U/R/F/D/L/B) 串接，讓切換配色時凱萊圖與狀態鍵完全相容
+    return slotList.map(id => HEX_TO_FACE[state[id]] || state[id]).join('|');
   }
   const SOLVED_KEY = (() => { initStickerState(); return getStateKey(); })();
+
+  function syncPinColors() {
+    for (const f of FACES) {
+      const pin = $(`pin-${f.toLowerCase()}`);
+      if (!pin) continue;
+      const badge = pin.querySelector('.pin-badge');
+      const dot = pin.querySelector('.pin-dot');
+      if (badge) badge.style.borderColor = COLORS[f];
+      if (dot) dot.style.background = COLORS[f];
+    }
+    const yBeam = document.querySelector('.axis-beam.y');
+    if (yBeam) {
+      yBeam.style.background = `linear-gradient(180deg, ${COLORS.U}, transparent 48%, transparent 52%, ${COLORS.D})`;
+    }
+    const xBeam = document.querySelector('.axis-beam.x');
+    if (xBeam) {
+      xBeam.style.background = `linear-gradient(90deg, ${COLORS.L}, transparent 48%, transparent 52%, ${COLORS.R})`;
+    }
+  }
 
   // 轉成 Kociemba 標準 facelet 字串（URFDLB 順序）。
   // 經窮舉比對確認：本專案的 face+idx 編號與標準 facelet 索引完全一致，只需依序輸出。
@@ -1412,6 +1445,45 @@
   };
   syncViewControls();
 
+  // 配色切換（黃底白上 ↔ 白底黃上）：保留當前轉動狀態，即時換色重繪
+  function applyColorScheme(nextKey) {
+    const oldHexToFace = { ...HEX_TO_FACE };
+    const faceSnapshot = Object.fromEntries(slotList.map(id => [id, oldHexToFace[stickerState[id]] || 'U']));
+    const savedCubies = cubies.map(c => ({ p: [...c.p], o: c.o.map(r => [...r]) }));
+
+    currentSchemeKey = nextKey;
+    const scheme = COLOR_SCHEMES[currentSchemeKey];
+    COLORS = { ...scheme.colors };
+    HEX_TO_FACE = Object.fromEntries(Object.entries(COLORS).map(([f, c]) => [c, f]));
+
+    for (const id of slotList) {
+      stickerState[id] = COLORS[faceSnapshot[id]];
+    }
+
+    build3DCube();
+    if (savedCubies.length === cubies.length) {
+      cubies.forEach((c, idx) => {
+        c.p = savedCubies[idx].p;
+        c.o = savedCubies[idx].o;
+        c.e.style.transform = toMatrix3d(c.o, c.p);
+      });
+    }
+    syncPinColors();
+    $('toggleScheme').textContent = `🎨 配色: ${scheme.label}`;
+    $('toggleScheme').classList.toggle('active', currentSchemeKey === 'whiteBottom');
+    if ($('lblIntroText')) {
+      $('lblIntroText').textContent = `${scheme.dName} (D) 在底、${scheme.uName} (U) 在頂，綠色 (F) 朝向自己。✅ 會即時檢查目前方塊是否完成該步；點公式會直接在方塊上播放。`;
+    }
+    if ($('tutorialModal').classList.contains('open')) renderTutorial();
+  }
+
+  $('toggleScheme').onclick = () => {
+    const next = currentSchemeKey === 'yellowBottom' ? 'whiteBottom' : 'yellowBottom';
+    applyColorScheme(next);
+    toast(`已切換為「${COLOR_SCHEMES[next].label}」配色`, 'ok');
+    haptic(12);
+  };
+
   // 空間羅盤操作：一般按鈕統一用 click，鍵盤與螢幕閱讀器才有正確語意
   document.querySelectorAll('.dpad-btn').forEach(btn => {
     btn.addEventListener('click', () => enqueue([btn.dataset.move]));
@@ -1480,26 +1552,26 @@
   const topFace = ids => ids.every(i => stickerState['U' + i] === COLORS.U);
   const TUTORIAL = [
     { title: '1. 底面十字', check: () => solved(p => p[1] === 1 && isEdge(p)),
-      text: '找出含黃色的 4 個稜塊，讓它們在底面拼成十字，且每塊側面顏色要和該面中心相同。常用做法：先把稜塊轉到頂層、對準它側面顏色的中心正上方（轉 U 調整），再照下列情況處理。',
-      algs: [['黃色朝上，在前方頂層', 'F2'], ['黃色朝前，在前方頂層', 'U′ R′ F R']] },
+      text: (d, u) => `找出含${d}的 4 個稜塊，讓它們在底面拼成十字，且每塊側面顏色要和該面中心相同。常用做法：先把稜塊轉到頂層、對準它側面顏色的中心正上方（轉 U 調整），再照下列情況處理。`,
+      algs: (d) => [[`${d}朝上，在前方頂層`, 'F2'], [`${d}朝前，在前方頂層`, 'U′ R′ F R']] },
     { title: '2. 底層角塊', check: () => solved(p => p[1] === 1),
-      text: '把含黃色的角塊轉到「右前上」位置，正下方就是它的目標（三色對應的角）。重複下列公式直到該角歸位（最多 5 次），其他底層不會被破壞。',
-      algs: [['重複直到歸位', 'R U R′ U′']] },
+      text: (d, u) => `把含${d}的角塊轉到「右前上」位置，正下方就是它的目標（三色對應的角）。重複下列公式直到該角歸位（最多 5 次），其他底層不會被破壞。`,
+      algs: () => [['重複直到歸位', 'R U R′ U′']] },
     { title: '3. 中層稜塊', check: () => solved(p => p[1] >= 0),
-      text: '找頂層不含白色的稜塊，轉 U 讓它前面的顏色對上前方中心。再看它頂面的顏色屬於右面還是左面，決定往右或往左放入。',
-      algs: [['放入右前', 'U R U′ R′ U′ F′ U F'], ['放入左前', 'U′ L′ U L U F U′ F′']] },
+      text: (d, u) => `找頂層不含${u}的稜塊，轉 U 讓它前面的顏色對上前方中心。再看它頂面的顏色屬於右面還是左面，決定往右或往左放入。`,
+      algs: () => [['放入右前', 'U R U′ R′ U′ F′ U F'], ['放入左前', 'U′ L′ U L U F U′ F′']] },
     { title: '4. 頂面十字', check: () => solved(p => p[1] >= 0) && topFace([1, 3, 5, 7]),
-      text: '只看頂面白色稜塊：一點 → 做一次後變 L 形；L 形 → 轉 U 讓 L 開口朝右後（白色在左與後），做一次變一字；一字 → 轉成橫向，做一次即成十字。',
-      algs: [['翻稜公式', 'F R U R′ U′ F′']] },
-    { title: '5. 頂面全白', check: () => solved(p => p[1] >= 0) && topFace([0, 1, 2, 3, 5, 6, 7, 8]),
-      text: '頂面只有一個角是白色時，把它放在左前；沒有時，讓左前角的白色朝左；有兩個時，讓左前角的白色朝前。做一次後重新判斷，直到頂面全白。',
-      algs: [['小魚公式 (Sune)', 'R U R′ U R U2 R′']] },
+      text: (d, u) => `只看頂面${u}稜塊：一點 → 做一次後變 L 形；L 形 → 轉 U 讓 L 開口朝右後（${u}在左與後），做一次變一字；一字 → 轉成橫向，做一次即成十字。`,
+      algs: () => [['翻稜公式', 'F R U R′ U′ F′']] },
+    { title: '5. 頂面全同色 (OLL)', check: () => solved(p => p[1] >= 0) && topFace([0, 1, 2, 3, 5, 6, 7, 8]),
+      text: (d, u) => `頂面只有一個角是${u}時，把它放在左前；沒有時，讓左前角的${u}朝左；有兩個時，讓左前角的${u}朝前。做一次後重新判斷，直到頂面全為${u}。`,
+      algs: () => [['小魚公式 (Sune)', 'R U R′ U R U2 R′']] },
     { title: '6. 頂層角塊歸位', check: () => solved(p => p[1] >= 0 || isCorner(p)),
-      text: '轉 U 找出側面兩色都對上的角，把它放在左前，做一次公式；若三個角轉錯方向，再做一次。都沒對上時先做一次再找。',
-      algs: [['角塊三循環 (A-perm)', 'R′ F R′ B2 R F′ R′ B2 R2']] },
+      text: () => '轉 U 找出側面兩色都對上的角，把它放在左前，做一次公式；若三個角轉錯方向，再做一次。都沒對上時先做一次再找。',
+      algs: () => [['角塊三循環 (A-perm)', 'R′ F R′ B2 R F′ R′ B2 R2']] },
     { title: '7. 頂層稜塊歸位', check: () => getStateKey() === SOLVED_KEY,
-      text: '轉 U 找出已對上的稜塊，把它放在後方，做一次公式；若方向相反就再做一次。四塊都沒對上時先做一次。',
-      algs: [['稜塊三循環 (U-perm)', 'R U′ R U R U R U′ R′ U′ R2']] }
+      text: () => '轉 U 找出已對上的稜塊，把它放在後方，做一次公式；若方向相反就再做一次。四塊都沒對上時先做一次。',
+      algs: () => [['稜塊三循環 (U-perm)', 'R U′ R U R U R U′ R′ U′ R2']] }
   ];
   // 進階轉動解析器：支援雙層 (r,l,u,d,f,b)、中層 (M,E,S)、整體轉體 (x,y,z) 與括號重複 (x2,x3)
   const NORMAL_TO_FACE = {
@@ -1734,14 +1806,15 @@
 
   function renderTutorial() {
     let firstTodo = -1;
+    const { dName, uName } = COLOR_SCHEMES[currentSchemeKey];
     $('tutorialSteps').innerHTML = TUTORIAL.map((st, i) => {
       const done = firstTodo < 0 && st.check();
       if (!done && firstTodo < 0) firstTodo = i;
       const open = i === firstTodo || $('tutorialSteps').querySelector(`[data-step="${i}"]`)?.open;
       return `<details class="tut-step${i === firstTodo ? ' current' : ''}" data-step="${i}"${open ? ' open' : ''}>
         <summary>${done ? '✅' : i === firstTodo ? '👉' : '⬜'} ${st.title}</summary>
-        <p>${st.text}</p>
-        ${st.algs.map(([label, alg]) => `<button class="preset-item" data-alg="${alg}"${processing ? ' disabled' : ''}>${label}：${alg}</button>`).join('')}
+        <p>${st.text(dName, uName)}</p>
+        ${st.algs(dName, uName).map(([label, alg]) => `<button class="preset-item" data-alg="${alg}"${processing ? ' disabled' : ''}>${label}：${alg}</button>`).join('')}
       </details>`;
     }).join('');
 
