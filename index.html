@@ -99,7 +99,7 @@
     .scene { width: 200px; height: 200px; perspective: 800px; display: grid; place-items: center; }
     .cube-view {
       width: 140px; height: 140px; position: relative; transform-style: preserve-3d;
-      transform: rotateX(-24deg) rotateY(36deg);
+      transform: rotateX(-24deg) rotateY(-36deg);
     }
     .cubie {
       position: absolute; left: 48px; top: 48px; width: 44px; height: 44px;
@@ -152,7 +152,7 @@
 
     .pin-badge {
       position: absolute; left: 0; top: 0; transform-origin: 0 0;
-      transform: rotateY(calc(-1 * var(--ry, 36deg))) rotateX(calc(-1 * var(--rx, -24deg))) translate(-50%, -50%);
+      transform: rotateY(calc(-1 * var(--ry, -36deg))) rotateX(calc(-1 * var(--rx, -24deg))) translate(-50%, -50%);
       white-space: nowrap; pointer-events: none; font-size: 0.68rem; font-weight: 800; padding: 2px 7px;
       border-radius: 999px; background: rgba(13, 25, 41, 0.92); border: 1.5px solid rgba(255,255,255,0.3);
       display: flex; align-items: center; gap: 4px; box-shadow: 0 3px 10px rgba(0,0,0,0.6);
@@ -865,7 +865,7 @@
   }
 
   // 3. 視角姿態與常向廣告牌補償
-  const HOME_RX = -24, HOME_RY = 36;
+  const HOME_RX = -24, HOME_RY = -36;
   const RX_LIMIT = 89;
   let rx = HOME_RX, ry = HOME_RY;
 
