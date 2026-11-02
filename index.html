@@ -483,12 +483,12 @@
              aria-labelledby="tab-col-left" tabindex="-1">
       <div class="card-title">
         <span>3D 本體座標空間</span>
-        <small style="font-size:0.72rem;color:var(--muted)">滑動貼紙轉層 · 拖曳空白處轉視角 · 鍵盤 U/D/L/R/F/B（Shift = 逆時針）</small>
+        <small style="font-size:0.72rem;color:var(--muted)">單指滑貼紙轉層 · 雙指或拖空白處轉視角 · 鍵盤 U/D/L/R/F/B（Shift = 逆時針）</small>
       </div>
 
       <!-- 3D 舞台 -->
       <div class="cube-stage" id="cubeStage" role="application"
-           aria-label="3D 魔術方塊檢視區：滑動貼紙轉動該層，拖曳空白處旋轉視角">
+           aria-label="3D 魔術方塊檢視區：單指滑動貼紙轉動該層，雙指或拖曳空白處旋轉視角">
         <div class="stage-hud" id="springHud">
           <i class="spring-dot"></i>
           <span>陀螺儀回正啟用中（鬆手自動彈回）</span>
@@ -1303,26 +1303,40 @@
     return dir === specs[base][2] ? base : base + '′';
   }
 
+  // 觸控分工：單指在貼紙上滑 = 轉層；雙指 (任何位置) 或單指拖空白處 = 轉視角
+  const pointers = new Map();
+  const midpoint = () => {
+    const ps = [...pointers.values()];
+    return [ps.reduce((a, p) => a + p.x, 0) / ps.length, ps.reduce((a, p) => a + p.y, 0) / ps.length];
+  };
+  function startViewDrag() {
+    isDragging = true;
+    swipe = null; // 第二指落下時取消尚未觸發的轉層
+    if (springAnimId) cancelAnimationFrame(springAnimId);
+    [lastX, lastY] = midpoint();
+  }
+
   stage.addEventListener('pointerdown', e => {
     if (e.target.closest('#algRunnerBar')) return;
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    stage.setPointerCapture(e.pointerId);
     const st = e.target.closest('.sticker');
-    if (st) {
+    if (pointers.size === 1 && st) {
       const cubie = cubies.find(c => c.e === st.parentElement);
       const local = STICKER_NORMALS[[...st.classList].find(k => STICKER_NORMALS[k])];
       swipe = { x: e.clientX, y: e.clientY, cubie, n: mv(cubie.o, local) };
-      stage.setPointerCapture(e.pointerId);
       return;
     }
-    isDragging = true;
-    if (springAnimId) cancelAnimationFrame(springAnimId);
-    lastX = e.clientX; lastY = e.clientY;
-    stage.setPointerCapture(e.pointerId);
+    startViewDrag();
   });
 
   stage.addEventListener('pointermove', e => {
+    if (!pointers.has(e.pointerId)) return;
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (swipe) {
       const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y;
-      if (Math.hypot(dx, dy) < 14) return;
+      // 門檻較大：讓第二指有時間落下，避免想轉視角時誤轉一層
+      if (Math.hypot(dx, dy) < 22) return;
       // 轉動中不接受滑動：方塊位置尚未更新，算出的層會錯
       const move = processing ? null : swipeToMove(swipe, dx, dy);
       swipe = null;
@@ -1330,16 +1344,20 @@
       return;
     }
     if (!isDragging) return;
-    if (!lockHorizontal) ry += (e.clientX - lastX) * 0.55;
+    const [mx, my] = midpoint();
+    if (!lockHorizontal) ry += (mx - lastX) * 0.55;
     // X 軸限幅，避免長時間拖曳後翻轉難以控制
-    if (!lockVertical) rx = Math.max(-RX_LIMIT, Math.min(RX_LIMIT, rx - (e.clientY - lastY) * 0.55));
-    lastX = e.clientX; lastY = e.clientY;
+    if (!lockVertical) rx = Math.max(-RX_LIMIT, Math.min(RX_LIMIT, rx - (my - lastY) * 0.55));
+    lastX = mx; lastY = my;
     updateViewAndBillboards();
   });
 
-  const onPointerRelease = () => {
+  const onPointerRelease = e => {
+    pointers.delete(e.pointerId);
     swipe = null;
     if (!isDragging) return;
+    // 雙指放開一指：以剩下那指續拖，不跳動
+    if (pointers.size) { [lastX, lastY] = midpoint(); return; }
     isDragging = false;
     if (autoSpringEnabled) springBackToHome();
   };
