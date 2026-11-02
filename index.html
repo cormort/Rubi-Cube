@@ -1201,6 +1201,7 @@
     lastProjSig = sig;
     if (size !== ringLayoutSize) { ringLayout = getRingLayout(w, h); ringLayoutSize = size; }
     pctx.clearRect(0, 0, w, h);
+    pctx.lineWidth = 1;
     const { pos, centers, radii } = ringLayout;
     pctx.strokeStyle = 'rgba(255,255,255,0.12)';
     for (const c of centers) for (const r of radii) { pctx.beginPath(); pctx.arc(c.x, c.y, r, 0, Math.PI * 2); pctx.stroke(); }
@@ -1229,7 +1230,8 @@
         pctx.beginPath();
         pctx.moveTo(p1.x, p1.y);
         pctx.quadraticCurveTo(mx, my, p2.x, p2.y);
-        pctx.strokeStyle = live ? 'rgba(97,218,251,0.35)' : 'rgba(97,218,251,0.2)';
+        pctx.strokeStyle = live ? 'rgba(97,218,251,0.9)' : 'rgba(97,218,251,0.6)';
+        pctx.lineWidth = 1.5;
         pctx.stroke();
         if (!live) continue;
         const qx = (1-t)*(1-t)*p1.x + 2*(1-t)*t*mx + t*t*p2.x;
