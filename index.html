@@ -7,7 +7,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon-192.png">
   <link rel="apple-touch-icon" href="icon-192.png">
-  <meta name="description" content="圖論魔術方塊：以凱萊圖視覺化 3x3x3 魔術方塊的置換結構，內建 Kociemba 兩階段求解器。">
+  <meta name="description" content="圖論魔術方塊：以貼紙環狀軌道視覺化 3x3x3 魔術方塊的置換結構，內建 Kociemba 兩階段求解器。">
   <title>圖論魔術方塊 - Kociemba 完整版</title>
   <style>
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -247,7 +247,7 @@
     .status-item b { display: block; font-size: 0.95rem; color: var(--accent); }
     .status-item small { font-size: 0.65rem; color: var(--muted); }
 
-    /* 右側畫布 (凱萊圖 + 貼紙環狀投影) */
+    /* 右側畫布 (貼紙環狀投影) */
     .canvas-card { display: flex; flex-direction: column; gap: 10px; }
     .canvas-wrap {
       flex: 1; min-height: 240px; border-radius: 12px; background: #060e18;
@@ -474,7 +474,7 @@
     <button class="tab-btn active" role="tab" id="tab-col-left" data-tab="col-left"
             aria-selected="true" aria-controls="col-left">🎲 3D 空間方塊</button>
     <button class="tab-btn" role="tab" id="tab-col-right" data-tab="col-right"
-            aria-selected="false" aria-controls="col-right">🕸️ 凱萊圖與軌道</button>
+            aria-selected="false" aria-controls="col-right">🌀 貼紙軌道</button>
   </nav>
 
   <div class="workspace">
@@ -603,24 +603,22 @@
       </div>
     </section>
 
-    <!-- 右欄：凱萊狀態圖 + 貼紙環狀投影 -->
+    <!-- 右欄：貼紙環狀投影 -->
     <section class="card canvas-card mobile-tab-view" id="col-right" role="tabpanel"
              aria-labelledby="tab-col-right" tabindex="-1">
       <div class="card-title">
-        <span>局部凱萊狀態圖 (Cayley Graph)</span>
-        <small style="font-size:0.72rem;color:var(--muted)">點擊節點動態導航 · 可拖拽</small>
-      </div>
-      <div class="canvas-wrap">
-        <canvas id="graphCanvas" role="img" aria-label="已探索狀態的凱萊圖"></canvas>
-      </div>
-
-      <div class="card-title" style="margin-top:4px">
         <span>54 貼紙環狀軌道 (Permutation Ring)</span>
         <small id="projHint" style="font-size:0.72rem;color:var(--accent)">等候轉動</small>
       </div>
-      <div class="canvas-wrap" style="height:180px;flex:none">
+      <div class="canvas-wrap">
         <canvas id="projCanvas" role="img" aria-label="54 張貼紙的環狀投影"></canvas>
       </div>
+
+      <div class="card-title">
+        <span>頂層俯視 · 整條公式淨效果</span>
+        <small id="netHint" style="font-size:0.72rem;color:var(--muted)">播放 OLL / PLL 後顯示箭頭</small>
+      </div>
+      <div class="canvas-wrap" id="topView" style="flex:none;height:230px;display:grid;place-items:center" role="img" aria-label="頂層貼紙俯視圖與整條公式的移動箭頭"></div>
     </section>
   </div>
 </div>
@@ -786,7 +784,7 @@
     stickerState = Object.fromEntries(FACES.flatMap(f => Array.from({length:9}, (_, i) => [f+i, COLORS[f]])));
   }
   function getStateKey(state = stickerState) {
-    // 以邏輯面名 (U/R/F/D/L/B) 串接，讓切換配色時凱萊圖與狀態鍵完全相容
+    // 以邏輯面名 (U/R/F/D/L/B) 串接，讓切換配色時狀態鍵完全相容
     return slotList.map(id => HEX_TO_FACE[state[id]] || state[id]).join('|');
   }
   const SOLVED_KEY = (() => { initStickerState(); return getStateKey(); })();
@@ -945,21 +943,16 @@
     springAnimId = requestAnimationFrame(step);
   }
 
-  // 5. 凱萊圖拓撲
-  let graphNodes = new Map();
-  let graphEdges = [];
+  // 5. 已探索狀態（只計數：探索狀態 / 閉合環路）
+  const visitedStates = new Set();
   let currentNodeKey = SOLVED_KEY;
   let moveHistory = [];
   let cycleCount = 0;
 
-  function resetGraph() {
-    graphNodes.clear();
-    graphEdges = [];
+  function resetExplored() {
+    visitedStates.clear();
+    visitedStates.add(SOLVED_KEY);
     cycleCount = 0;
-    graphNodes.set(SOLVED_KEY, {
-      id: 0, key: SOLVED_KEY, label: 'S₀', depth: 0,
-      x: 0, y: 0, vx: 0, vy: 0, isSolved: true
-    });
     currentNodeKey = SOLVED_KEY;
     moveHistory = [];
   }
@@ -1018,7 +1011,7 @@
     if (job.instantReset) {
       initStickerState();
       build3DCube();
-      resetGraph();
+      resetExplored();
       animState = null;
       updateUI();
       return;
@@ -1070,36 +1063,12 @@
     const prevState = { ...stickerState };
     pairs.forEach(([src, dst]) => { stickerState[dst] = prevState[src]; });
     const nextKey = getStateKey();
-    const previousNodeKey = currentNodeKey;
     currentNodeKey = nextKey;
 
     if (record) {
       moveHistory.push(move);
-      let targetNode = graphNodes.get(nextKey);
-      let isNewCycle = false;
-
-      if (!targetNode) {
-        // 初始位置採可重現的黃金角螺旋，不再依賴隨機值
-        const idx = graphNodes.size;
-        const angle = idx * 2.399963;
-        const radius = 18 + Math.sqrt(idx) * 9;
-        const parent = graphNodes.get(previousNodeKey);
-        targetNode = {
-          id: idx, key: nextKey,
-          label: nextKey === SOLVED_KEY ? 'S₀' : `S${idx}`,
-          depth: moveHistory.length,
-          x: (parent?.x || 0) + Math.cos(angle) * radius,
-          y: (parent?.y || 0) + Math.sin(angle) * radius,
-          vx: 0, vy: 0, isSolved: nextKey === SOLVED_KEY
-        };
-        graphNodes.set(nextKey, targetNode);
-      } else {
-        isNewCycle = true;
-        cycleCount++;
-        $('cyclesVal').textContent = cycleCount;
-      }
-
-      graphEdges.push({ from: previousNodeKey, to: nextKey, move, isCycle: isNewCycle });
+      if (visitedStates.has(nextKey)) $('cyclesVal').textContent = ++cycleCount;
+      else visitedStates.add(nextKey);
     }
 
     updateUI();
@@ -1130,10 +1099,6 @@
   function inverseMove(m) { return m.includes('′') ? m[0] : m + '′'; }
 
   // 7. 畫布渲染
-  const graphCanvas = $('graphCanvas'), gctx = graphCanvas.getContext('2d');
-  let draggedNode = null;
-  let lastGraphFrame = 0;
-
   function resizeCanvas(c, ctx) {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const w = c.clientWidth, h = c.clientHeight;
@@ -1142,79 +1107,6 @@
     }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     return { w, h };
-  }
-
-  function renderGraph(now) {
-    requestAnimationFrame(renderGraph);
-    // 分頁不可見時暫停；凱萊圖限流至約 30 FPS（力導向每幀是 O(n²)）
-    if (document.hidden) return;
-    if (now === undefined || now - lastGraphFrame < 32) return;
-    lastGraphFrame = now === undefined ? 0 : now;
-
-    const { w, h } = resizeCanvas(graphCanvas, gctx);
-    const nodes = Array.from(graphNodes.values());
-
-    for (let i = 0; i < nodes.length; i++) {
-      for (let j = i + 1; j < nodes.length; j++) {
-        const a = nodes[i], b = nodes[j];
-        const dx = b.x - a.x, dy = b.y - a.y;
-        const dist = Math.hypot(dx, dy) || 1;
-        // 限幅：避免兩點過近時 1/d² 爆衝把節點彈飛
-        const force = Math.min(1800 / (dist * dist), 40);
-        const fx = (dx / dist) * force, fy = (dy / dist) * force;
-        if (a !== draggedNode && !a.isSolved) { a.vx -= fx; a.vy -= fy; }
-        if (b !== draggedNode && !b.isSolved) { b.vx += fx; b.vy += fy; }
-      }
-    }
-    for (const edge of graphEdges) {
-      const a = graphNodes.get(edge.from), b = graphNodes.get(edge.to);
-      if (!a || !b) continue;
-      const dx = b.x - a.x, dy = b.y - a.y;
-      const dist = Math.hypot(dx, dy) || 1;
-      const force = Math.max(-20, Math.min(20, (dist - 55) * 0.05));
-      const fx = (dx / dist) * force, fy = (dy / dist) * force;
-      if (a !== draggedNode && !a.isSolved) { a.vx -= fx; a.vy -= fy; }
-      if (b !== draggedNode && !b.isSolved) { b.vx += fx; b.vy += fy; }
-    }
-    for (const n of nodes) {
-      if (n.isSolved) { n.x = 0; n.y = 0; continue; }
-      if (n === draggedNode) continue;
-      n.vx -= n.x * 0.025; n.vy -= n.y * 0.025;
-      n.vx = Math.max(-30, Math.min(30, n.vx * 0.8));
-      n.vy = Math.max(-30, Math.min(30, n.vy * 0.8));
-      n.x += n.vx; n.y += n.vy;
-    }
-
-    gctx.clearRect(0, 0, w, h);
-    gctx.save();
-    gctx.translate(w / 2, h / 2);
-
-    for (const edge of graphEdges) {
-      const a = graphNodes.get(edge.from), b = graphNodes.get(edge.to);
-      if (!a || !b) continue;
-      gctx.beginPath();
-      gctx.moveTo(a.x, a.y);
-      gctx.lineTo(b.x, b.y);
-      gctx.strokeStyle = edge.isCycle ? 'rgba(255,159,67,0.5)' : 'rgba(97,218,251,0.25)';
-      gctx.lineWidth = edge.isCycle ? 2 : 1.2;
-      gctx.stroke();
-    }
-
-    for (const n of nodes) {
-      const isCur = n.key === currentNodeKey;
-      gctx.beginPath();
-      gctx.arc(n.x, n.y, isCur ? 9 : (n.isSolved ? 7 : 5), 0, Math.PI * 2);
-      gctx.fillStyle = n.isSolved ? '#35d39a' : (isCur ? '#61dafb' : '#415b76');
-      gctx.fill();
-      gctx.strokeStyle = isCur ? '#ffffff' : '#07101d';
-      gctx.lineWidth = 1.5;
-      gctx.stroke();
-
-      gctx.fillStyle = '#d2e3f3';
-      gctx.font = '9px system-ui';
-      gctx.fillText(n.label, n.x + 8, n.y - 6);
-    }
-    gctx.restore();
   }
 
   // 貼紙投影
@@ -1239,14 +1131,77 @@
     }
     return { pos, centers, radii: RING_R.map(r => r * d) };
   }
+  // 整條公式的淨置換：[原位置, 公式做完後的位置]，只留真的有移動的貼紙
+  let netPairs = null, netVer = 0;
+  function setNetPairs(moves) {
+    if (moves) {
+      const st = simulateMoves(moves);
+      netPairs = slotList.filter(id => st[id] !== id).map(id => [st[id], id]);
+    } else netPairs = null;
+    netVer++;
+  }
+  function drawArrow(ctx, x1, y1, x2, y2, bend) {
+    const mx = (x1 + x2) / 2 + (y2 - y1) * bend, my = (y1 + y2) / 2 - (x2 - x1) * bend;
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.quadraticCurveTo(mx, my, x2, y2); ctx.stroke();
+    const a = Math.atan2(y2 - my, x2 - mx);
+    ctx.beginPath();
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x2 - 7 * Math.cos(a - 0.45), y2 - 7 * Math.sin(a - 0.45));
+    ctx.lineTo(x2 - 7 * Math.cos(a + 0.45), y2 - 7 * Math.sin(a + 0.45));
+    ctx.closePath(); ctx.fill();
+  }
+  // 頂層俯視：U 面 3×3 + 四個側面的頂排；x 向右、z 向下（F 在下方）
+  const isCornerSlot = id => slots[id].p.every(v => v !== 0);
+  function renderTopView() {
+    const S = 44, C = 110, at = id => {
+      const { p, n } = slots[id];
+      return [C + (p[0] + n[0] * 0.72) * S, C + (p[2] + n[2] * 0.72) * S];
+    };
+    const top = slotList.filter(id => slots[id].p[1] === -1);
+    const cells = top.map(id => {
+      const [x, y] = at(id), side = slots[id].face !== 'U';
+      const w = side && slots[id].n[0] ? 12 : 40, h = side && slots[id].n[2] ? 12 : 40;
+      return `<rect x="${x - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" rx="4" fill="${stickerState[id]}" stroke="#07101d" stroke-width="2"/>`;
+    });
+    // 只畫和 U 面有關的箭頭：U→U 是換位置 (PLL)，U↔側面 是翻轉方向 (OLL)；側→側 與 U 箭頭重複故略過
+    const arrows = (netPairs || []).filter(([a, b]) => slots[a].p[1] === -1 && (slots[a].face === 'U' || slots[b].face === 'U'));
+    // OLL 型公式（有貼紙翻上頂面）只畫「側面 → 頂面」，否則順帶的換位箭頭會蓋掉重點
+    const flipsUp = arrows.filter(([a, b]) => slots[a].face !== 'U' && slots[b].face === 'U');
+    const shown = flipsUp.length ? flipsUp : arrows;
+    const lines = shown.map(([a, b]) => {
+      const [x1, y1] = at(a), [x2, y2] = at(b), d = Math.hypot(x2 - x1, y2 - y1) || 1;
+      const k = 9 / d, sx = x1 + (x2 - x1) * k, sy = y1 + (y2 - y1) * k, ex = x2 - (x2 - x1) * k, ey = y2 - (y2 - y1) * k;
+      const mx = (sx + ex) / 2 + (ey - sy) * 0.18, my = (sy + ey) / 2 - (ex - sx) * 0.18;
+      const kind = isCornerSlot(a) ? 'c' : 'e';
+      return `<path d="M${sx.toFixed(1)},${sy.toFixed(1)} Q${mx.toFixed(1)},${my.toFixed(1)} ${ex.toFixed(1)},${ey.toFixed(1)}" fill="none" stroke="var(--arr-${kind})" stroke-width="3" marker-end="url(#tv-${kind})"/>`;
+    });
+    const mk = k => `<marker id="tv-${k}" viewBox="0 0 6 6" refX="4" refY="3" markerWidth="4" markerHeight="4" orient="auto"><path d="M0,0.5 L5.5,3 L0,5.5 Z" fill="var(--arr-${k})"/></marker>`;
+    $('topView').innerHTML = `<svg viewBox="0 0 220 220" width="210" height="210" style="--arr-c:#2563eb;--arr-e:#ef4444">
+      <defs>${mk('c')}${mk('e')}</defs>${cells.join('')}${lines.join('')}</svg>`;
+
+    if (!netPairs) { $('netHint').textContent = '播放 OLL / PLL 後顯示箭頭'; return; }
+    const corners = shown.filter(([a]) => isCornerSlot(a)).length;
+    $('netHint').textContent = !shown.length ? '這條公式不影響頂層'
+      : flipsUp.length ? `OLL：${flipsUp.length} 張側面貼紙翻上頂面（角 ${corners}、邊 ${shown.length - corners}）`
+      : `PLL：角 ${corners}、邊 ${shown.length - corners} 塊換位置`;
+  }
   function startProjectionAnimation(pairs, duration) { animState = { pairs, duration, start: performance.now(), done: false }; }
-  function renderProjection(now) {
+  let lastProjSig = '', lastTopSig = '', ringLayout = null, ringLayoutSize = '';
+  function renderProjection() {
     requestAnimationFrame(renderProjection);
     if (document.hidden) return;
 
     const { w, h } = resizeCanvas(projCanvas, pctx);
+    // 靜止時不重畫：尺寸、貼紙顏色、軌道動畫都沒變就跳過
+    const size = w + 'x' + h;
+    const colors = slotList.map(id => stickerState[id]).join();
+    const sig = size + colors + netVer + (animState ? animState.start + ':' + animState.done : '');
+    if (sig === lastProjSig && (!animState || animState.done)) return;
+    if (colors + netVer !== lastTopSig) { lastTopSig = colors + netVer; renderTopView(); }
+    lastProjSig = sig;
+    if (size !== ringLayoutSize) { ringLayout = getRingLayout(w, h); ringLayoutSize = size; }
     pctx.clearRect(0, 0, w, h);
-    const { pos, centers, radii } = getRingLayout(w, h);
+    const { pos, centers, radii } = ringLayout;
     pctx.strokeStyle = 'rgba(255,255,255,0.12)';
     for (const c of centers) for (const r of radii) { pctx.beginPath(); pctx.arc(c.x, c.y, r, 0, Math.PI * 2); pctx.stroke(); }
     // 必須顯式設定：否則會沿用上一次軌道動畫留下的 strokeStyle，讓點的外框變色
@@ -1288,20 +1243,28 @@
       }
       if (progress >= 1) animState.done = true;
     }
+    // 整條公式的淨效果：粗箭頭，藍 = 角塊貼紙、紅 = 邊塊貼紙
+    if (netPairs) {
+      pctx.lineWidth = 2.2;
+      for (const [src, dst] of netPairs) {
+        const p1 = pos[src], p2 = pos[dst], d = Math.hypot(p2.x - p1.x, p2.y - p1.y) || 1, k = 5 / d;
+        pctx.strokeStyle = pctx.fillStyle = isCornerSlot(src) ? 'rgba(59,130,246,0.9)' : 'rgba(239,68,68,0.9)';
+        drawArrow(pctx, p1.x + (p2.x - p1.x) * k, p1.y + (p2.y - p1.y) * k, p2.x - (p2.x - p1.x) * k, p2.y - (p2.y - p1.y) * k, 0.2);
+      }
+      pctx.lineWidth = 1;
+    }
   }
 
   function updateUI() {
     $('depthVal').textContent = moveHistory.length;
-    $('nodesVal').textContent = graphNodes.size;
+    $('nodesVal').textContent = visitedStates.size;
   }
 
   // 尺寸變化自動處理（視窗縮放、分頁切換、旋轉螢幕）
   if ('ResizeObserver' in window) {
     const ro = new ResizeObserver(() => {
-      resizeCanvas(graphCanvas, gctx);
       resizeCanvas(projCanvas, pctx);
     });
-    ro.observe(graphCanvas);
     ro.observe(projCanvas);
   }
 
@@ -1335,77 +1298,6 @@
   stage.addEventListener('pointerup', onPointerRelease);
   stage.addEventListener('pointercancel', onPointerRelease);
   stage.addEventListener('dblclick', () => { springBackToHome(); haptic(20); });
-
-  // 拓撲節點拖拽與點擊動態導航 (BFS 尋找最短已探索路徑並動態播放)
-  let graphDownPos = null;
-  function findGraphPath(startKey, targetKey) {
-    if (startKey === targetKey) return [];
-    const adj = new Map();
-    const addDir = (u, v, m) => {
-      if (!adj.has(u)) adj.set(u, []);
-      adj.get(u).push({ to: v, move: m });
-    };
-    for (const e of graphEdges) {
-      addDir(e.from, e.to, e.move);
-      addDir(e.to, e.from, inverseMove(e.move));
-    }
-    const visited = new Set([startKey]);
-    const q = [{ key: startKey, path: [] }];
-    while (q.length) {
-      const { key, path } = q.shift();
-      for (const next of (adj.get(key) || [])) {
-        if (visited.has(next.to)) continue;
-        const nextPath = [...path, next.move];
-        if (next.to === targetKey) return nextPath;
-        visited.add(next.to);
-        q.push({ key: next.to, path: nextPath });
-      }
-    }
-    return null;
-  }
-
-  graphCanvas.addEventListener('pointerdown', e => {
-    const rect = graphCanvas.getBoundingClientRect();
-    const mx = (e.clientX - rect.left) - graphCanvas.clientWidth / 2;
-    const my = (e.clientY - rect.top) - graphCanvas.clientHeight / 2;
-    for (const n of graphNodes.values()) {
-      if (Math.hypot(n.x - mx, n.y - my) < 18) {
-        draggedNode = n;
-        graphDownPos = { x: e.clientX, y: e.clientY, node: n };
-        graphCanvas.setPointerCapture(e.pointerId);
-        break;
-      }
-    }
-  });
-  graphCanvas.addEventListener('pointermove', e => {
-    if (!draggedNode) return;
-    const rect = graphCanvas.getBoundingClientRect();
-    draggedNode.x = (e.clientX - rect.left) - graphCanvas.clientWidth / 2;
-    draggedNode.y = (e.clientY - rect.top) - graphCanvas.clientHeight / 2;
-  });
-  const endGraphDrag = e => {
-    if (graphDownPos && e && e.type === 'pointerup') {
-      const moved = Math.hypot(e.clientX - graphDownPos.x, e.clientY - graphDownPos.y);
-      const target = graphDownPos.node;
-      if (moved < 6 && target && !processing) {
-        if (target.key === currentNodeKey) {
-          toast(`目前已處於狀態 ${target.label}`);
-        } else {
-          const curLabel = graphNodes.get(currentNodeKey)?.label || '當前';
-          const path = findGraphPath(currentNodeKey, target.key);
-          if (path && path.length) {
-            const title = `狀態導航 ${curLabel} → ${target.label}`;
-            toast(`${title}：共 ${path.length} 步動態轉移`, 'ok');
-            startSolutionRunner(title, `${path.length} 步路徑`, path, { duration: 170 });
-          }
-        }
-      }
-    }
-    draggedNode = null;
-    graphDownPos = null;
-  };
-  graphCanvas.addEventListener('pointerup', endGraphDrag);
-  graphCanvas.addEventListener('pointercancel', endGraphDrag);
 
   // 視角工具：自動回正開關、立即回正、兩軸鎖定
   function syncViewControls() {
@@ -1529,9 +1421,10 @@
   $('resetBtn').addEventListener('click', () => {
     queue.length = 0;
     runnerSession = null;
+    setNetPairs(null);
     initStickerState();
     build3DCube();
-    resetGraph();
+    resetExplored();
     animState = null;
     $('algRunnerBar').classList.remove('active');
     $('projHint').textContent = '等候轉動';
@@ -1933,6 +1826,7 @@
   function startSolutionRunner(baseTitle, formula, moves, options = {}) {
     const { duration = 210, initialDelay = 0, playFirstStep = true } = options;
     queue.length = 0;
+    setNetPairs(moves);
     runnerSession = {
       baseTitle,
       formula,
@@ -1989,6 +1883,7 @@
     e.stopPropagation();
     queue.length = 0;
     runnerSession = null;
+    setNetPairs(null);
     $('algRunnerBar').classList.remove('active');
   });
 
@@ -2003,7 +1898,7 @@
       const invMoves = solveMoves.slice().reverse().map(inverseMove);
       initStickerState();
       build3DCube();
-      resetGraph();
+      resetExplored();
       animState = null;
       for (const m of invMoves) {
         const pairs = getMovePermutation(m);
@@ -2020,11 +1915,8 @@
         });
       }
       currentNodeKey = getStateKey();
-      graphNodes.clear();
-      graphNodes.set(currentNodeKey, {
-        id: 0, key: currentNodeKey, label: title.split(' ')[0], depth: 0,
-        x: 0, y: 0, vx: 0, vy: 0, isSolved: false
-      });
+      visitedStates.clear();
+      visitedStates.add(currentNodeKey);
       updateUI();
       startSolutionRunner(`${title} · 動態解法`, alg, solveMoves, { duration: 210, initialDelay: 320, playFirstStep: true });
     } else {
@@ -2055,7 +1947,7 @@
       queue.length = 0;
       initStickerState();
       build3DCube();
-      resetGraph();
+      resetExplored();
       animState = null;
       updateUI();
       const solveMoves = expandExtendedAlg(alg);
@@ -2210,10 +2102,9 @@
   // 初始化啟動
   initStickerState();
   build3DCube();
-  resetGraph();
+  resetExplored();
   updateUI();
   updateViewAndBillboards();
-  requestAnimationFrame(renderGraph);
   requestAnimationFrame(renderProjection);
 
   // PWA：註冊 Service Worker 與檢查更新
