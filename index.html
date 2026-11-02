@@ -600,6 +600,8 @@
         <div class="action-row">
           <button class="action-btn primary" id="scrambleBtn">🎲 打亂 20 步</button>
           <button class="action-btn" id="undoBtn">↶ 回退一步</button>
+          <button class="action-btn" id="lockStateBtn">📌 鎖定狀態</button>
+          <button class="action-btn" id="restoreStateBtn" disabled>⤴ 回到鎖定</button>
           <button class="action-btn solve wide" id="solveBtn">🧠 Kociemba 求解</button>
         </div>
       </div>
@@ -1546,6 +1548,42 @@
     if (!moveHistory.length) { toast('沒有可回退的操作'); return; }
     const last = moveHistory.pop();
     enqueue([inverseMove(last)], { record: false, duration: 150 });
+  });
+
+  // 鎖定狀態：只存一組，再鎖定會覆蓋；重設不會清掉。貼紙存面名，換配色後仍可還原
+  let lockedState = null;
+  $('lockStateBtn').addEventListener('click', () => {
+    if (processing) { toast('請等待轉動完成'); return; }
+    lockedState = {
+      faces: Object.fromEntries(slotList.map(id => [id, HEX_TO_FACE[stickerState[id]]])),
+      cubies: cubies.map(c => ({ p: [...c.p], o: c.o.map(r => [...r]) })),
+      history: [...moveHistory]
+    };
+    $('restoreStateBtn').disabled = false;
+    haptic(15);
+    toast('已鎖定目前狀態');
+  });
+
+  $('restoreStateBtn').addEventListener('click', () => {
+    if (processing) { toast('請等待轉動完成'); return; }
+    queue.length = 0;
+    runnerSession = null;
+    setNetPairs(null);
+    $('algRunnerBar').classList.remove('active');
+    for (const id of slotList) stickerState[id] = COLORS[lockedState.faces[id]];
+    cubies.forEach((c, idx) => {
+      c.p = [...lockedState.cubies[idx].p];
+      c.o = lockedState.cubies[idx].o.map(r => [...r]);
+      c.e.style.transform = toMatrix3d(c.o, c.p);
+    });
+    moveHistory = [...lockedState.history];
+    currentNodeKey = getStateKey();
+    visitedStates.add(currentNodeKey);
+    animState = null;
+    $('projHint').textContent = '已回到鎖定狀態';
+    $('orderVal').textContent = 1;
+    haptic(15);
+    updateUI();
   });
 
   $('resetBtn').addEventListener('click', () => {
