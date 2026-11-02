@@ -93,17 +93,19 @@
       height: 300px; display: grid; place-items: center; touch-action: none;
       background: radial-gradient(circle at 50% 50%, rgba(24,55,94,0.35) 0%, rgba(7,16,29,0.92) 75%);
       position: relative; overflow: hidden; border-radius: 12px; border: 1px solid rgba(34,60,88,0.4);
-      cursor: grab;
+      cursor: grab; -webkit-user-select: none; -webkit-touch-callout: none;
     }
     .cube-stage:active { cursor: grabbing; }
     .scene { width: 200px; height: 200px; perspective: 800px; display: grid; place-items: center; }
     .cube-view {
       width: 140px; height: 140px; position: relative; transform-style: preserve-3d;
       transform: rotateX(-24deg) rotateY(-36deg);
+      pointer-events: none;
     }
     .cubie {
       position: absolute; left: 48px; top: 48px; width: 44px; height: 44px;
       transform-style: preserve-3d; will-change: transform;
+      /* 繼承 .cube-view 的 pointer-events: none：方塊本體與核心板會擋住貼紙的命中判定，只讓貼紙接收觸控 */
     }
     .cubie-core {
       position: absolute; inset: 1px; background: #05080c; border-radius: 6px;
@@ -112,7 +114,7 @@
     .sticker {
       position: absolute; inset: 2.5px; border-radius: 5px; border: 1.5px solid #06090d;
       box-shadow: inset 0 0 6px rgba(255,255,255,0.25); backface-visibility: hidden;
-      display: flex; align-items: center; justify-content: center;
+      display: flex; align-items: center; justify-content: center; pointer-events: auto;
     }
     .center-label {
       font-size: 14px; font-weight: 900; font-family: monospace;
@@ -140,6 +142,13 @@
       width: 1.5px; height: 250px; margin-left: -0.75px; margin-top: -125px;
       background: linear-gradient(180deg, rgba(37,99,235,0.85), transparent 48%, transparent 52%, rgba(16,185,129,0.85));
       transform: rotateX(90deg);
+    }
+
+    /* 手指托住時標示鎖定的面；放在 guides-layer，轉動時不隨方塊跑掉 */
+    .face-lock {
+      position: absolute; inset: -2px; display: none; border-radius: 10px;
+      border: 3px solid #61dafb; background: rgba(97,218,251,0.14);
+      box-shadow: 0 0 14px rgba(97,218,251,0.8);
     }
 
     .face-pin { position: absolute; left: 50%; top: 50%; width: 0; height: 0; transform-style: preserve-3d; }
@@ -483,12 +492,12 @@
              aria-labelledby="tab-col-left" tabindex="-1">
       <div class="card-title">
         <span>3D 本體座標空間</span>
-        <small style="font-size:0.72rem;color:var(--muted)">單指滑貼紙轉層 · 雙指或拖空白處轉視角 · 鍵盤 U/D/L/R/F/B（Shift = 逆時針）</small>
+        <small style="font-size:0.72rem;color:var(--muted)">單指滑貼紙轉層 · 一指托貼紙、另一指繞面劃 = 轉托住的面 · 拖空白處轉視角 · 鍵盤 U/D/L/R/F/B（Shift = 逆時針）</small>
       </div>
 
       <!-- 3D 舞台 -->
       <div class="cube-stage" id="cubeStage" role="application"
-           aria-label="3D 魔術方塊檢視區：單指滑動貼紙轉動該層，雙指或拖曳空白處旋轉視角">
+           aria-label="3D 魔術方塊檢視區：單指滑動貼紙轉動該層；一指按住貼紙、另一指繞面劃動轉動按住的面；拖曳空白處旋轉視角">
         <div class="stage-hud" id="springHud">
           <i class="spring-dot"></i>
           <span>陀螺儀回正啟用中（鬆手自動彈回）</span>
@@ -498,6 +507,7 @@
           <div class="cube-view" id="cube" aria-hidden="true">
             <!-- 3D 穿心基準線與 6 面常向標籤 -->
             <div class="guides-layer">
+              <div class="face-lock" id="faceLock"></div>
               <div class="axis-beam x"></div>
               <div class="axis-beam y"></div>
               <div class="axis-beam z"></div>
@@ -1303,8 +1313,30 @@
     return dir === specs[base][2] ? base : base + '′';
   }
 
-  // 觸控分工：單指在貼紙上滑 = 轉層；雙指 (任何位置) 或單指拖空白處 = 轉視角
+  // 觸控分工：單指在貼紙上滑 = 轉層；一指托貼紙 + 另一指繞面劃 = 轉托住的面
+  // (側面同框時單指垂直滑會轉到相鄰面，托住可明確指定)；拖空白處 = 轉視角
   const pointers = new Map();
+  let hold = null; // 托住的手指：{ id, x, y, face, n, stroke }；stroke = 劃動中的另一指
+  const FACE_LOCK_TF = { F: '', B: 'rotateY(180deg)', R: 'rotateY(90deg)', L: 'rotateY(-90deg)', U: 'rotateX(90deg)', D: 'rotateX(-90deg)' };
+  function startHold({ id, x, y, n }) {
+    const axIdx = n.findIndex(v => v);
+    const face = Object.keys(specs).find(f => specs[f][0] === 'xyz'[axIdx] && specs[f][1] === n[axIdx]);
+    hold = { id, x, y, face, n, stroke: null };
+    $('faceLock').style.transform = `${FACE_LOCK_TF[face]} translateZ(71px)`;
+    $('faceLock').style.display = 'block';
+    haptic(10);
+  }
+  function endHold() {
+    hold = null;
+    $('faceLock').style.display = 'none';
+  }
+  // 第二指相對面中心的位置，用來判斷繞中心的順逆；指在中心附近時改以托住的手指為軸
+  function startStroke(e) {
+    const center = cubies.find(c => c.p.every((v, i) => v === hold.n[i])).e.querySelector('.sticker').getBoundingClientRect();
+    let r = [e.clientX - (center.left + center.width / 2), e.clientY - (center.top + center.height / 2)];
+    if (Math.hypot(...r) < 20) r = [e.clientX - hold.x, e.clientY - hold.y];
+    hold.stroke = { id: e.pointerId, x: e.clientX, y: e.clientY, r, done: false };
+  }
   const midpoint = () => {
     const ps = [...pointers.values()];
     return [ps.reduce((a, p) => a + p.x, 0) / ps.length, ps.reduce((a, p) => a + p.y, 0) / ps.length];
@@ -1320,11 +1352,23 @@
     if (e.target.closest('#algRunnerBar')) return;
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     stage.setPointerCapture(e.pointerId);
+    if (hold) {
+      if (!hold.stroke) startStroke(e);
+      return;
+    }
+    // 第二指落下時第一指還按在貼紙上 = 托住該面
+    if (swipe && !swipe.stale) {
+      startHold(swipe);
+      swipe = null;
+      startStroke(e);
+      return;
+    }
     const st = e.target.closest('.sticker');
     if (pointers.size === 1 && st) {
       const cubie = cubies.find(c => c.e === st.parentElement);
       const local = STICKER_NORMALS[[...st.classList].find(k => STICKER_NORMALS[k])];
-      swipe = { x: e.clientX, y: e.clientY, cubie, n: mv(cubie.o, local) };
+      // stale：轉動中按下，方塊方向尚未更新，不能拿來托面
+      swipe = { id: e.pointerId, x: e.clientX, y: e.clientY, cubie, n: mv(cubie.o, local), stale: processing };
       return;
     }
     startViewDrag();
@@ -1333,6 +1377,16 @@
   stage.addEventListener('pointermove', e => {
     if (!pointers.has(e.pointerId)) return;
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (hold) {
+      const s = hold.stroke;
+      if (!s || e.pointerId !== s.id || s.done || processing) return;
+      // 只算繞中心的切向位移（螢幕 y 向下，外積 > 0 = 順時針），徑向滑動不觸發
+      const swept = (s.r[0] * (e.clientY - s.y) - s.r[1] * (e.clientX - s.x)) / (Math.hypot(...s.r) || 1);
+      if (Math.abs(swept) < 18) return;
+      s.done = true; // 一次劃動轉一下；第二指放開再劃可以連轉
+      enqueue([swept > 0 ? hold.face : hold.face + '′']);
+      return;
+    }
     if (swipe) {
       const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y;
       // 門檻較大：讓第二指有時間落下，避免想轉視角時誤轉一層
@@ -1355,6 +1409,15 @@
   const onPointerRelease = e => {
     pointers.delete(e.pointerId);
     swipe = null;
+    if (hold) {
+      if (e.pointerId === hold.id) {
+        endHold();
+        if (pointers.size) startViewDrag(); // 托住的手指先放開：剩下那指接手轉視角
+      } else if (hold.stroke?.id === e.pointerId) {
+        hold.stroke = null;
+      }
+      return;
+    }
     if (!isDragging) return;
     // 雙指放開一指：以剩下那指續拖，不跳動
     if (pointers.size) { [lastX, lastY] = midpoint(); return; }
