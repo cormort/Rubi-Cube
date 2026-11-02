@@ -483,12 +483,12 @@
              aria-labelledby="tab-col-left" tabindex="-1">
       <div class="card-title">
         <span>3D 本體座標空間</span>
-        <small style="font-size:0.72rem;color:var(--muted)">拖曳旋轉視角 · 鍵盤 U/D/L/R/F/B（Shift = 逆時針）</small>
+        <small style="font-size:0.72rem;color:var(--muted)">滑動貼紙轉層 · 拖曳空白處轉視角 · 鍵盤 U/D/L/R/F/B（Shift = 逆時針）</small>
       </div>
 
       <!-- 3D 舞台 -->
       <div class="cube-stage" id="cubeStage" role="application"
-           aria-label="3D 魔術方塊檢視區，可拖曳旋轉視角">
+           aria-label="3D 魔術方塊檢視區：滑動貼紙轉動該層，拖曳空白處旋轉視角">
         <div class="stage-hud" id="springHud">
           <i class="spring-dot"></i>
           <span>陀螺儀回正啟用中（鬆手自動彈回）</span>
@@ -1274,8 +1274,45 @@
   let isDragging = false, lastX = 0, lastY = 0;
   const stage = $('cubeStage');
 
+  // 在貼紙上滑動 = 轉動該層；在空白處拖曳 = 旋轉視角
+  const STICKER_NORMALS = { sf: [0,0,1], sb: [0,0,-1], sr: [1,0,0], sl: [-1,0,0], su: [0,-1,0], sd: [0,1,0] };
+  let swipe = null;
+  // 世界向量經 rotateX(rx) rotateY(ry) 投影到螢幕 (x 右、y 下)
+  function projectToScreen([x, y, z]) {
+    const a = ry * Math.PI / 180, b = rx * Math.PI / 180;
+    const z1 = -x * Math.sin(a) + z * Math.cos(a);
+    return [x * Math.cos(a) + z * Math.sin(a), y * Math.cos(b) - z1 * Math.sin(b)];
+  }
+  function swipeToMove({ cubie, n }, dx, dy) {
+    // 貼紙所在面的兩個切線軸中，挑螢幕投影最貼近滑動方向者
+    let best = null;
+    for (const t of [[1,0,0],[0,1,0],[0,0,1]]) {
+      if (t.some((v, i) => v && n[i])) continue;
+      const [sx, sy] = projectToScreen(t), len = Math.hypot(sx, sy) || 1;
+      const dot = (sx * dx + sy * dy) / len;
+      if (!best || Math.abs(dot) > Math.abs(best.dot)) best = { t, dot };
+    }
+    const m = best.t.map(v => v * Math.sign(best.dot));
+    // 轉軸 = 法向 × 移動方向；層 = 方塊在該軸上的座標
+    const a = [n[1]*m[2] - n[2]*m[1], n[2]*m[0] - n[0]*m[2], n[0]*m[1] - n[1]*m[0]];
+    const axIdx = a.findIndex(v => v !== 0), axis = 'xyz'[axIdx], layer = cubie.p[axIdx];
+    if (!layer) return null; // ponytail: 中層 (M/E/S) 尚未支援
+    // rotMatrix(axis, +1) 為右手正向，會把法向 n 帶往 (+軸 × n)；與 m 同向取 +1
+    const dir = Math.sign(a[axIdx]);
+    const base = Object.keys(specs).find(f => specs[f][0] === axis && specs[f][1] === layer);
+    return dir === specs[base][2] ? base : base + '′';
+  }
+
   stage.addEventListener('pointerdown', e => {
     if (e.target.closest('#algRunnerBar')) return;
+    const st = e.target.closest('.sticker');
+    if (st) {
+      const cubie = cubies.find(c => c.e === st.parentElement);
+      const local = STICKER_NORMALS[[...st.classList].find(k => STICKER_NORMALS[k])];
+      swipe = { x: e.clientX, y: e.clientY, cubie, n: mv(cubie.o, local) };
+      stage.setPointerCapture(e.pointerId);
+      return;
+    }
     isDragging = true;
     if (springAnimId) cancelAnimationFrame(springAnimId);
     lastX = e.clientX; lastY = e.clientY;
@@ -1283,6 +1320,15 @@
   });
 
   stage.addEventListener('pointermove', e => {
+    if (swipe) {
+      const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y;
+      if (Math.hypot(dx, dy) < 14) return;
+      // 轉動中不接受滑動：方塊位置尚未更新，算出的層會錯
+      const move = processing ? null : swipeToMove(swipe, dx, dy);
+      swipe = null;
+      if (move) enqueue([move]);
+      return;
+    }
     if (!isDragging) return;
     if (!lockHorizontal) ry += (e.clientX - lastX) * 0.55;
     // X 軸限幅，避免長時間拖曳後翻轉難以控制
@@ -1292,6 +1338,7 @@
   });
 
   const onPointerRelease = () => {
+    swipe = null;
     if (!isDragging) return;
     isDragging = false;
     if (autoSpringEnabled) springBackToHome();
