@@ -4,6 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#07101d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon-192.png">
   <link rel="apple-touch-icon" href="icon-192.png">
@@ -34,7 +37,8 @@
       overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
     }
     .app-container {
-      max-width: 1280px; margin: 0 auto; padding: 10px 14px 20px;
+      max-width: 1280px; margin: 0 auto;
+      padding: calc(10px + env(safe-area-inset-top, 0px)) 14px calc(20px + env(safe-area-inset-bottom, 0px));
       display: flex; flex-direction: column; min-height: 100vh;
     }
 
@@ -48,7 +52,10 @@
       font-size: 0.7rem; padding: 2px 7px; border-radius: 999px;
       background: rgba(97,218,251,0.12); color: var(--accent); border: 1px solid rgba(97,218,251,0.3);
     }
-    .header-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .header-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; position: relative; }
+    /* 桌機：設定面板用 display:contents 讓按鈕直接排進 header；手機改成浮動面板 */
+    .header-more { display: contents; }
+    #moreToggle { display: none; }
     .btn-icon {
       background: var(--panel-elevated); border: 1px solid var(--line); color: var(--ink);
       border-radius: 8px; padding: 6px 10px; font-size: 0.78rem; font-weight: 600; cursor: pointer;
@@ -57,6 +64,13 @@
     .btn-icon:hover:not(:disabled) { border-color: var(--accent); }
     .btn-icon.active { background: rgba(97,218,251,0.2); border-color: var(--accent); color: var(--accent); }
     .btn-icon:disabled { opacity: 0.45; cursor: not-allowed; }
+    .lbl-short { display: none; }
+    /* 全域已關閉 tap-highlight，觸控必須靠 :active 給回饋，否則按下完全沒反應 */
+    .btn-icon:active:not(:disabled), .tab-btn:active, .preset-item:active, .tut-tab:active,
+    .runner-btn:active:not(:disabled), .alg-play:active:not(:disabled), .alg-setup:active:not(:disabled),
+    .dpad-btn:active:not(:disabled), .action-btn:active:not(:disabled) {
+      transform: scale(0.96); filter: brightness(1.25);
+    }
 
     /* 雙欄主佈局架構 (桌機並排 / 手機切換) */
     .workspace {
@@ -115,6 +129,11 @@
       position: absolute; inset: 2.5px; border-radius: 5px; border: 1.5px solid #06090d;
       box-shadow: inset 0 0 6px rgba(255,255,255,0.25); backface-visibility: hidden;
       display: flex; align-items: center; justify-content: center; pointer-events: auto;
+      transition: box-shadow 0.08s ease;
+    }
+    /* 單指滑動中的待轉層預覽（觸控沒有 hover，必須先給視覺提示） */
+    .cubie.swipe-hint .sticker {
+      box-shadow: inset 0 0 6px rgba(255,255,255,0.25), 0 0 0 2px rgba(97,218,251,0.95), 0 0 12px rgba(97,218,251,0.55);
     }
     .center-label {
       font-size: 14px; font-weight: 900; font-family: monospace;
@@ -179,6 +198,20 @@
     .spring-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
     .stage-hud.is-off .spring-dot { background: #6482a0; }
 
+    /* iOS 不支援 navigator.vibrate：改用極輕微的邊框脈衝代替觸感回饋 */
+    .cube-stage::after {
+      content: ''; position: absolute; inset: 0; border-radius: 12px; pointer-events: none;
+      box-shadow: inset 0 0 0 2px rgba(97,218,251,0); transition: box-shadow 0.18s ease;
+    }
+    .cube-stage.tick::after { box-shadow: inset 0 0 0 2px rgba(97,218,251,0.55); }
+
+    /* 觸控裝置不顯示鍵盤提示，省下一行高度 */
+    .hint-touch { display: none; }
+    @media (hover: none) {
+      .hint-touch { display: inline; }
+      .hint-pointer { display: none; }
+    }
+
     /* ================= 空間十字羅盤控制器 ================= */
     .spatial-deck {
       margin-top: 10px; display: flex; flex-direction: column; gap: 6px;
@@ -231,8 +264,27 @@
     .speed-row {
       display: flex; align-items: center; gap: 8px;
       max-width: 400px; margin: 6px auto 0; width: 100%; font-size: 0.85rem; color: #8ecbff;
+      min-height: 44px;
     }
     .speed-row input { flex: 1; accent-color: var(--accent); }
+    /* 原生 16px 高的滑桿在觸控上幾乎抓不住，改成 24px 拇指 + 44px 觸控帶 */
+    .speed-row input[type="range"] {
+      -webkit-appearance: none; appearance: none; height: 34px; background: transparent; margin: 0;
+    }
+    .speed-row input[type="range"]::-webkit-slider-runnable-track {
+      height: 6px; border-radius: 3px; background: #1c3656; border: 1px solid #294768;
+    }
+    .speed-row input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 24px; height: 24px; margin-top: -10px; border-radius: 50%;
+      background: var(--accent); border: 2px solid #07101d; box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+    }
+    .speed-row input[type="range"]::-moz-range-track {
+      height: 6px; border-radius: 3px; background: #1c3656; border: 1px solid #294768;
+    }
+    .speed-row input[type="range"]::-moz-range-thumb {
+      width: 24px; height: 24px; border-radius: 50%; background: var(--accent);
+      border: 2px solid #07101d; box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+    }
     .speed-row output { min-width: 3.2em; text-align: right; }
     .action-btn {
       min-height: var(--tap); border-radius: 9px; font-weight: 700; font-size: 0.8rem;
@@ -268,12 +320,20 @@
     .modal-backdrop {
       position: fixed; inset: 0; background: rgba(0,0,0,0.65);
       backdrop-filter: blur(4px); display: none; z-index: 100; place-items: center;
+      overscroll-behavior: contain;
     }
     .modal-backdrop.open { display: grid; }
     .modal-sheet {
       width: 90%; max-width: 440px; background: var(--panel); border-radius: 16px;
       border: 1px solid var(--line); padding: 18px; display: flex; flex-direction: column; gap: 10px;
       max-height: 80vh; overflow: auto;
+      touch-action: pan-y; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+    }
+    /* 手機開窗時鎖住背景頁面，避免手指拖到 backdrop 時把背後的頁面捲走 */
+    @media (hover: none) {
+      html.modal-open, html.modal-open body { overflow: hidden; }
+      /* 行動裝置關掉 backdrop-filter：整頁模糊成本高且容易掉幀 */
+      .modal-backdrop { backdrop-filter: none; background: rgba(3,8,16,0.86); }
     }
     .sheet-title { display: flex; justify-content: space-between; align-items: center; font-weight: 800; }
     .preset-item {
@@ -424,26 +484,99 @@
     @media (max-width: 859px) {
       .mobile-tab-view { display: none; }
       .mobile-tab-view.active { display: flex; }
-      .cube-stage { height: 260px; }
-      .scene { width: 190px; height: 190px; }
+
+      /* header 收成「品牌 + 立即回正 + ⚙️」，其餘按鈕收進浮動面板：
+         9 顆按鈕原本佔 175px（390 寬）到 217px（320 寬），等於吃掉 1/5～1/3 畫面 */
+      header { gap: 6px; flex-wrap: nowrap; padding: 4px 2px 8px; }
+      .brand { font-size: 1.02rem; gap: 6px; }
+      .header-actions { flex-wrap: nowrap; gap: 6px; }
+      #moreToggle { display: flex; align-items: center; justify-content: center; min-height: 44px; padding: 6px 12px; font-size: 1rem; }
+      .header-more {
+        display: none; position: absolute; top: calc(100% + 8px); right: 0; z-index: 60;
+        grid-template-columns: 1fr 1fr; gap: 6px; padding: 8px; width: min(90vw, 340px);
+        background: rgba(13, 25, 41, 0.98); border: 1px solid var(--line); border-radius: 12px;
+        box-shadow: 0 16px 40px rgba(0,0,0,0.65);
+      }
+      .header-more.open { display: grid; }
+      .header-more .btn-icon { min-height: 44px; justify-content: flex-start; text-align: left; font-size: 0.76rem; }
+      .btn-icon { min-height: 44px; }
+      .tab-btn { min-height: 44px; }
+      .lbl-full { display: none; }
+      .lbl-short { display: inline; }
+
+      /* 方塊本來只用了舞台 39% 的面積（190px 舞台寬 / 189px 方塊），放大到好按 */
+      .cube-stage { height: clamp(250px, 44vh, 350px); }
+      .scene { width: 190px; height: 190px; transform: scale(1.14); }
+      /* 標題與說明改上下排，標題才不會被擠成兩行 */
+      .card-title { flex-direction: column; align-items: flex-start; gap: 5px; }
+      .stage-hud { font-size: 0.6rem; max-width: 58%; }
+      .pin-badge { font-size: 0.6rem; padding: 1px 6px; }
+      .pin-u { transform: translateY(-128px); }
+      .pin-d { transform: translateY(128px); }
+      .pin-f { transform: translateZ(128px); }
+      .pin-b { transform: translateZ(-128px); }
+      .pin-r { transform: translateX(128px); }
+      .pin-l { transform: translateX(-128px); }
     }
 
     /* 超窄螢幕 (<= 390px)：再縮減間距與字級，觸控目標仍維持 44px */
     @media (max-width: 390px) {
-      .app-container { padding: 8px 10px 16px; }
-      .brand { font-size: 1rem; }
+      .app-container { padding: calc(8px + env(safe-area-inset-top, 0px)) 10px calc(16px + env(safe-area-inset-bottom, 0px)); }
+      .brand { font-size: 0.95rem; }
+      .badge { font-size: 0.62rem; padding: 2px 5px; }
       .compass-container { gap: 4px; grid-template-columns: 1fr 1.32fr 1fr; }
       .dpad-btn { font-size: 0.82rem; }
-      .cube-stage { height: 232px; }
-      .scene { width: 172px; height: 172px; }
-      .pin-u { transform: translateY(-100px); }
-      .pin-d { transform: translateY(100px); }
-      .pin-f { transform: translateZ(100px); }
-      .pin-b { transform: translateZ(-100px); }
-      .pin-r { transform: translateX(100px); }
-      .pin-l { transform: translateX(-100px); }
+      .cube-stage { height: clamp(250px, 42vh, 330px); }
+      .scene { width: 172px; height: 172px; transform: scale(1.14); }
+      .pin-u { transform: translateY(-112px); }
+      .pin-d { transform: translateY(112px); }
+      .pin-f { transform: translateZ(112px); }
+      .pin-b { transform: translateZ(-112px); }
+      .pin-r { transform: translateX(112px); }
+      .pin-l { transform: translateX(-112px); }
       .mini-status { gap: 4px; }
       .status-item b { font-size: 0.85rem; }
+    }
+
+    /* 小於 360px（iPhone SE 直向）：badge 收掉、方塊縮一點，否則面標籤會被舞台切掉 */
+    @media (max-width: 360px) {
+      .badge { display: none; }
+      .cube-stage { height: clamp(250px, 46vh, 300px); }
+      .scene { transform: scale(1.1); }
+      .pin-u { transform: translateY(-108px); }
+      .pin-d { transform: translateY(108px); }
+      .pin-f { transform: translateZ(108px); }
+      .pin-b { transform: translateZ(-108px); }
+      .pin-r { transform: translateX(108px); }
+      .pin-l { transform: translateX(-108px); }
+    }
+
+    /* 手機橫放：縱向空間只剩 390px，方塊與羅盤改成左右並排才玩得動 */
+    @media (orientation: landscape) and (max-height: 560px) and (max-width: 859px) {
+      .app-container { padding-top: calc(4px + env(safe-area-inset-top, 0px)); padding-bottom: 8px; }
+      header { padding: 0 2px 4px; }
+      .brand { font-size: 0.9rem; }
+      .badge { display: none; }
+      .mobile-tabs { margin-bottom: 4px; }
+      .mobile-tab-view.active {
+        display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 8px 10px; align-items: start;
+      }
+      .mobile-tab-view.active > .card-title { grid-column: 1 / -1; }
+      /* 橫放高度吃緊：說明文字先收起來，讓方塊完整落在第一屏 */
+      .mobile-tab-view.active > .card-title small { display: none; }
+      .mobile-tab-view.active > .cube-stage { height: calc(100vh - 190px); min-height: 190px; }
+      .mobile-tab-view.active .spatial-deck { margin-top: 0; }
+      .mobile-tab-view.active > .mini-status { grid-column: 1 / -1; margin-top: 4px; }
+      .mobile-tab-view.active > .canvas-wrap { grid-column: 1 / -1; }
+      /* 橫放時舞台矮，方塊縮小一點才留得下面標籤 */
+      .scene { transform: scale(0.82); }
+      .pin-u { transform: translateY(-112px); }
+      .pin-d { transform: translateY(112px); }
+      .pin-f { transform: translateZ(112px); }
+      .pin-b { transform: translateZ(-112px); }
+      .pin-r { transform: translateX(112px); }
+      .pin-l { transform: translateX(-112px); }
     }
 
     /* 使用者要求減少動態效果時，關閉非必要動畫 */
@@ -465,16 +598,21 @@
       <span class="badge">Kociemba 完整版</span>
     </div>
     <div class="header-actions">
-      <!-- 視角工具：自動回正 / 手動回正 / 兩軸鎖定 / 配色切換 -->
-      <button class="btn-icon" id="toggleScheme" title="切換黃底白上／白底黃上配色">🎨 配色: 黃底白上</button>
-      <button class="btn-icon active" id="toggleSpring" aria-pressed="true">🧲 自動回正: 開</button>
-      <button class="btn-icon" id="recenterBtn">↺ 立即回正</button>
-      <button class="btn-icon" id="lockVertical" aria-pressed="false">🔒 垂直鎖定</button>
-      <button class="btn-icon" id="lockHorizontal" aria-pressed="false">🔒 水平鎖定</button>
-      <button class="btn-icon" id="openPresets" aria-haspopup="dialog">✨ 經典公式</button>
-      <button class="btn-icon" id="openTutorial" aria-haspopup="dialog">📘 解法教學</button>
-      <button class="btn-icon" id="resetBtn">重設</button>
-      <button class="btn-icon" id="updateBtn">🔄 檢查更新</button>
+      <!-- 手機只留「立即回正 + ⚙️」，其餘收進浮動面板；桌機由 display:contents 攤平 -->
+      <button class="btn-icon" id="recenterBtn"><span class="lbl-full">↺ 立即回正</span><span class="lbl-short">↺ 回正</span></button>
+      <button class="btn-icon" id="moreToggle" aria-expanded="false" aria-controls="moreActions"
+              aria-label="更多設定與教學">⚙️</button>
+      <div class="header-more" id="moreActions">
+        <!-- 視角工具：自動回正 / 兩軸鎖定 / 配色切換 -->
+        <button class="btn-icon" id="toggleScheme" title="切換黃底白上／白底黃上配色">🎨 配色: 黃底白上</button>
+        <button class="btn-icon active" id="toggleSpring" aria-pressed="true">🧲 自動回正: 開</button>
+        <button class="btn-icon" id="lockVertical" aria-pressed="false">🔒 垂直鎖定</button>
+        <button class="btn-icon" id="lockHorizontal" aria-pressed="false">🔒 水平鎖定</button>
+        <button class="btn-icon" id="openPresets" aria-haspopup="dialog">✨ 經典公式</button>
+        <button class="btn-icon" id="openTutorial" aria-haspopup="dialog">📘 解法教學</button>
+        <button class="btn-icon" id="resetBtn">重設</button>
+        <button class="btn-icon" id="updateBtn">🔄 檢查更新</button>
+      </div>
     </div>
   </header>
 
@@ -492,7 +630,10 @@
              aria-labelledby="tab-col-left" tabindex="-1">
       <div class="card-title">
         <span>3D 本體座標空間</span>
-        <small style="font-size:0.72rem;color:var(--muted)">單指滑貼紙轉層 · 一指托貼紙、另一指繞面劃 = 轉托住的面 · 拖空白處轉視角 · 鍵盤 U/D/L/R/F/B（Shift = 逆時針）</small>
+        <small style="font-size:0.72rem;color:var(--muted)">
+          <span class="hint-touch">單指滑貼紙轉層 · 一指托貼紙、另一指繞面劃 = 轉托住的面 · 拖空白處轉視角</span>
+          <span class="hint-pointer">單指滑貼紙轉層 · 一指托貼紙、另一指繞面劃 = 轉托住的面 · 拖空白處轉視角 · 鍵盤 U/D/L/R/F/B（Shift = 逆時針）</span>
+        </small>
       </div>
 
       <!-- 3D 舞台 -->
@@ -710,8 +851,15 @@
   const FACES = ['U','R','F','D','L','B'];
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  function haptic(ms = 12) {
-    if ('vibrate' in navigator) { try { navigator.vibrate(ms); } catch (e) {} }
+  function haptic(ms = 12, visual = false) {
+    if ('vibrate' in navigator) { try { navigator.vibrate(ms); return; } catch (e) { /* 落到視覺回饋 */ } }
+    // iOS Safari 沒有 navigator.vibrate，只能給極輕微的視覺脈衝代替觸感
+    if (!visual) return;
+    const st = $('cubeStage');
+    if (!st) return;
+    st.classList.add('tick');
+    clearTimeout(haptic.visualTimer);
+    haptic.visualTimer = setTimeout(() => st.classList.remove('tick'), 170);
   }
 
   function toast(msg, kind = '') {
@@ -1105,6 +1253,7 @@
       processing = false;
       setBusy(false);
       updateUI();
+      flushPendingSwipe();
     }
   }
 
@@ -1289,6 +1438,27 @@
   // 在貼紙上滑動 = 轉動該層；在空白處拖曳 = 旋轉視角
   const STICKER_NORMALS = { sf: [0,0,1], sb: [0,0,-1], sr: [1,0,0], sl: [-1,0,0], su: [0,-1,0], sd: [0,1,0] };
   let swipe = null;
+  // 轉動中收到的手勢先暫存，等佇列清空再換算（原本直接丟棄，快速連滑會掉步）
+  let pendingSwipe = null;
+  let hintMove = null;
+  // 待轉層預覽：把該層的貼紙加上外框，讓使用者知道這一滑會轉哪一層
+  function setSwipeHint(move) {
+    if (move === hintMove) return;
+    hintMove = move;
+    document.querySelectorAll('.cubie.swipe-hint').forEach(c => c.classList.remove('swipe-hint'));
+    if (!move || !specs[move[0]]) return;
+    const [axis, layer] = specs[move[0]];
+    const axIdx = { x: 0, y: 1, z: 2 }[axis];
+    for (const c of cubies) if (c.p[axIdx] === layer) c.e.classList.add('swipe-hint');
+  }
+  function flushPendingSwipe() {
+    const p = pendingSwipe;
+    pendingSwipe = null;
+    if (!p) return;
+    // 用最新的方塊方位重算，才不會轉到動畫前的那一層
+    const move = swipeToMove({ cubie: p.cubie, n: mv(p.cubie.o, p.local) }, p.dx, p.dy);
+    if (move) { enqueue([move]); haptic(10, true); }
+  }
   // 世界向量經 rotateX(rx) rotateY(ry) 投影到螢幕 (x 右、y 下)
   function projectToScreen([x, y, z]) {
     const a = ry * Math.PI / 180, b = rx * Math.PI / 180;
@@ -1326,7 +1496,8 @@
     hold = { id, x, y, face, n, stroke: null };
     $('faceLock').style.transform = `${FACE_LOCK_TF[face]} translateZ(71px)`;
     $('faceLock').style.display = 'block';
-    haptic(10);
+    setSwipeHint(null);
+    haptic(10, true);
   }
   function endHold() {
     hold = null;
@@ -1370,9 +1541,11 @@
       const cubie = cubies.find(c => c.e === st.parentElement);
       const local = STICKER_NORMALS[[...st.classList].find(k => STICKER_NORMALS[k])];
       // stale：轉動中按下，方塊方向尚未更新，不能拿來托面
-      swipe = { id: e.pointerId, x: e.clientX, y: e.clientY, cubie, n: mv(cubie.o, local), stale: processing };
+      swipe = { id: e.pointerId, x: e.clientX, y: e.clientY, cubie, local, n: mv(cubie.o, local), stale: processing };
       return;
     }
+    pendingSwipe = null;
+    setSwipeHint(null);
     startViewDrag();
   });
 
@@ -1391,12 +1564,21 @@
     }
     if (swipe) {
       const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y;
-      // 門檻較大：讓第二指有時間落下，避免想轉視角時誤轉一層
-      if (Math.hypot(dx, dy) < 22) return;
-      // 轉動中不接受滑動：方塊位置尚未更新，算出的層會錯
-      const move = processing ? null : swipeToMove(swipe, dx, dy);
-      swipe = null;
-      if (move) enqueue([move]);
+      const dist = Math.hypot(dx, dy);
+      // 8px 起先亮出「待轉的那一層」，觸控沒有 hover，預覽是唯一不誤轉的辦法
+      if (dist < 8) return;
+      const fresh = { cubie: swipe.cubie, n: mv(swipe.cubie.o, swipe.local) };
+      if (dist < 14) { setSwipeHint(swipeToMove(fresh, dx, dy)); return; }
+      // 門檻 14px：原本 22px 對 30px 的貼紙太大，手指一抖就從「輕點」變「轉層」
+      if (processing) {
+        // 轉動中：方塊方向還沒更新，先記下來等佇列清空再算（原本直接丟棄手勢）
+        pendingSwipe = { cubie: swipe.cubie, local: swipe.local, dx, dy };
+        swipe = null; setSwipeHint(null);
+        return;
+      }
+      const move = swipeToMove(fresh, dx, dy);
+      swipe = null; setSwipeHint(null);
+      if (move) { enqueue([move]); haptic(10, true); }
       return;
     }
     if (!isDragging) return;
@@ -1411,6 +1593,7 @@
   const onPointerRelease = e => {
     pointers.delete(e.pointerId);
     swipe = null;
+    setSwipeHint(null);
     if (hold) {
       if (e.pointerId === hold.id) {
         endHold();
@@ -1429,7 +1612,36 @@
 
   stage.addEventListener('pointerup', onPointerRelease);
   stage.addEventListener('pointercancel', onPointerRelease);
-  stage.addEventListener('dblclick', () => { springBackToHome(); haptic(20); });
+  stage.addEventListener('dblclick', () => { springBackToHome(); haptic(20, true); });
+  // iOS Safari 的兩指手勢（pinch/rotate）會跟「托住貼紙再劃」搶事件，先擋掉
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach(type =>
+    stage.addEventListener(type, e => e.preventDefault(), { passive: false }));
+
+  // 手機 header 的 ⚙️ 面板：把低頻按鈕收起來，換回方塊的垂直空間
+  (function initMorePanel() {
+    const btn = $('moreToggle'), panel = $('moreActions');
+    if (!btn || !panel) return;
+    const setMore = open => {
+      panel.classList.toggle('open', open);
+      btn.classList.toggle('active', open);
+      btn.setAttribute('aria-expanded', String(open));
+    };
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      setMore(!panel.classList.contains('open'));
+    });
+    // 點面板外的任何地方就收起來（用 capture，避免被其他按鈕吃掉）
+    document.addEventListener('pointerdown', e => {
+      if (!panel.classList.contains('open')) return;
+      if (e.target.closest('#moreActions') || e.target.closest('#moreToggle')) return;
+      setMore(false);
+    }, true);
+    // 會開視窗或跳頁的按鈕，按完就收面板
+    panel.addEventListener('click', e => {
+      if (e.target.closest('#openPresets, #openTutorial, #resetBtn, #updateBtn')) setMore(false);
+    });
+    window.__closeMorePanel = () => setMore(false);
+  })();
 
   // 視角工具：自動回正開關、立即回正、兩軸鎖定
   function syncViewControls() {
@@ -1443,31 +1655,37 @@
 
     const locks = [lockVertical && '垂直', lockHorizontal && '水平'].filter(Boolean).join('、');
     $('springHud').classList.toggle('is-off', !autoSpringEnabled);
+    // 手機上 HUD 太長會壓到 U 面標籤，改短版文案
+    const hudShort = window.matchMedia('(max-width: 500px), (max-height: 560px)').matches;
     $('springHud').querySelector('span').textContent =
-      (autoSpringEnabled ? '陀螺儀回正啟用中（鬆手自動彈回）' : '自由角度模式（手動拖動）')
-      + (locks ? `（${locks}已鎖）` : '');
+      (autoSpringEnabled
+        ? (hudShort ? '回正開' : '陀螺儀回正啟用中（鬆手自動彈回）')
+        : (hudShort ? '自由角度' : '自由角度模式（手動拖動）'))
+      + (locks ? (hudShort ? `（${locks}）` : `（${locks}已鎖）`) : '');
   }
 
   $('toggleSpring').onclick = () => {
     autoSpringEnabled = !autoSpringEnabled;
     syncViewControls();
-    haptic(10);
+    haptic(10, true);
   };
   $('recenterBtn').onclick = () => {
     springBackToHome();
-    haptic(20);
+    haptic(20, true);
   };
   $('lockVertical').onclick = () => {
     lockVertical = !lockVertical;
     syncViewControls();
-    haptic(10);
+    haptic(10, true);
   };
   $('lockHorizontal').onclick = () => {
     lockHorizontal = !lockHorizontal;
     syncViewControls();
-    haptic(10);
+    haptic(10, true);
   };
   syncViewControls();
+  // 旋轉螢幕／改變視窗大小後，手機版 HUD 文案要跟著換
+  window.addEventListener('resize', () => syncViewControls());
 
   // 配色切換（黃底白上 ↔ 白底黃上）：保留當前轉動狀態，即時換色重繪
   function applyColorScheme(nextKey) {
@@ -1505,7 +1723,7 @@
     const next = currentSchemeKey === 'yellowBottom' ? 'whiteBottom' : 'yellowBottom';
     applyColorScheme(next);
     toast(`已切換為「${COLOR_SCHEMES[next].label}」配色`, 'ok');
-    haptic(12);
+    haptic(12, true);
   };
 
   // 空間羅盤操作：一般按鈕統一用 click，鍵盤與螢幕閱讀器才有正確語意
@@ -1527,6 +1745,7 @@
     } else if (e.key === 'Escape') {
       closePresets();
       closeTutorial();
+      if (window.__closeMorePanel) window.__closeMorePanel();
     }
   });
 
@@ -2141,15 +2360,22 @@
     }
   });
   let tutorialFocus = null;
+  // 手機開窗時鎖住背景頁面捲動（關窗解除），否則拖動面板會捲到背後的頁面
+  function syncModalLock() {
+    const open = !!document.querySelector('.modal-backdrop.open');
+    document.documentElement.classList.toggle('modal-open', open);
+  }
   function openTutorial() {
     tutorialFocus = document.activeElement;
     renderTutorial();
     $('tutorialModal').classList.add('open');
+    syncModalLock();
     $('closeTutorial').focus();
   }
   function closeTutorial() {
     if (!$('tutorialModal').classList.contains('open')) return;
     $('tutorialModal').classList.remove('open');
+    syncModalLock();
     if (tutorialFocus && typeof tutorialFocus.focus === 'function') tutorialFocus.focus();
   }
   $('openTutorial').onclick = openTutorial;
@@ -2161,11 +2387,13 @@
   function openPresets() {
     lastFocused = document.activeElement;
     $('presetModal').classList.add('open');
+    syncModalLock();
     $('closeModal').focus();
   }
   function closePresets() {
     if (!$('presetModal').classList.contains('open')) return;
     $('presetModal').classList.remove('open');
+    syncModalLock();
     if (lastFocused && typeof lastFocused.focus === 'function') lastFocused.focus();
   }
   $('openPresets').onclick = openPresets;
