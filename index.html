@@ -9,7 +9,8 @@
   <meta name="mobile-web-app-capable" content="yes">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon-192.png">
-  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-title" content="圖論魔方">
   <meta name="description" content="圖論魔術方塊：以貼紙環狀軌道視覺化 3x3x3 魔術方塊的置換結構，內建 Kociemba 兩階段求解器。">
   <title>圖論魔術方塊 - Kociemba 完整版</title>
   <style>
@@ -454,6 +455,25 @@
       border-color: var(--orange); color: var(--orange); background: rgba(255, 159, 67, 0.15);
     }
 
+    /* 版本更新提示列（不用 confirm()，standalone 模式下也不會跳出系統對話框） */
+    .update-bar {
+      position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+      transform: translateX(-50%) translateY(140%); opacity: 0; pointer-events: none;
+      display: flex; align-items: center; gap: 10px; z-index: 300;
+      max-width: min(92vw, 420px); padding: 8px 8px 8px 14px; border-radius: 999px;
+      background: rgba(13, 25, 41, 0.98); border: 1px solid var(--accent);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6); color: var(--ink);
+      font-size: 0.8rem; font-weight: 700;
+      transition: transform 0.25s ease, opacity 0.25s ease;
+    }
+    .update-bar.show { transform: translateX(-50%) translateY(0); opacity: 1; pointer-events: auto; }
+    .update-bar button {
+      min-height: 34px; padding: 0 14px; border-radius: 999px; border: none; cursor: pointer;
+      background: linear-gradient(135deg, #1881b0, #14598a); color: #fff;
+      font-weight: 800; font-size: 0.78rem; white-space: nowrap;
+    }
+    body.has-update .toast-region { bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
+
     /* Toast */
     .toast-region {
       position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px));
@@ -603,6 +623,7 @@
       <button class="btn-icon" id="moreToggle" aria-expanded="false" aria-controls="moreActions"
               aria-label="更多設定與教學">⚙️</button>
       <div class="header-more" id="moreActions">
+        <button class="btn-icon" id="installBtn" hidden>📲 安裝到主畫面</button>
         <!-- 視角工具：自動回正 / 兩軸鎖定 / 配色切換 -->
         <button class="btn-icon" id="toggleScheme" title="切換黃底白上／白底黃上配色">🎨 配色: 黃底白上</button>
         <button class="btn-icon active" id="toggleSpring" aria-pressed="true">🧲 自動回正: 開</button>
@@ -826,6 +847,26 @@
       <div class="alg-grid" id="pllGrid"></div>
     </div>
   </div>
+</div>
+
+<!-- iOS「加入主畫面」說明 -->
+<div class="modal-backdrop" id="installModal">
+  <div class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="installTitle">
+    <div class="sheet-title">
+      <span id="installTitle">安裝到主畫面</span>
+      <button class="btn-icon" id="closeInstall" aria-label="關閉安裝說明">✕</button>
+    </div>
+    <p style="margin:6px 0 0;font-size:0.85rem;line-height:1.7;color:var(--ink)">
+      裝到主畫面後可以全螢幕開啟、離線使用，也不會再被瀏覽器的網址列佔掉高度。
+    </p>
+    <div id="installSteps" style="display:grid;gap:8px;margin-top:4px;font-size:0.82rem;line-height:1.7"></div>
+    <p style="margin:2px 0 0;font-size:0.74rem;color:var(--muted);line-height:1.6" id="installNote"></p>
+  </div>
+</div>
+
+<div class="update-bar" id="updateBar" role="status">
+  <span>有新版本可用</span>
+  <button id="updateApply" type="button">立即更新</button>
 </div>
 
 <div class="toast-region" id="toastRegion" role="status" aria-live="polite"></div>
@@ -1638,7 +1679,7 @@
     }, true);
     // 會開視窗或跳頁的按鈕，按完就收面板
     panel.addEventListener('click', e => {
-      if (e.target.closest('#openPresets, #openTutorial, #resetBtn, #updateBtn')) setMore(false);
+      if (e.target.closest('#openPresets, #openTutorial, #resetBtn, #updateBtn, #installBtn')) setMore(false);
     });
     window.__closeMorePanel = () => setMore(false);
   })();
@@ -1745,6 +1786,7 @@
     } else if (e.key === 'Escape') {
       closePresets();
       closeTutorial();
+      if (typeof closeInstallHelp === 'function') closeInstallHelp();
       if (window.__closeMorePanel) window.__closeMorePanel();
     }
   });
@@ -2504,21 +2546,130 @@
   requestAnimationFrame(renderProjection);
 
   // PWA：註冊 Service Worker 與檢查更新
+  // ===== PWA 安裝流程 =====
+  // Chrome / Edge / Android：攔下 beforeinstallprompt，用自己的按鈕觸發安裝
+  // iOS Safari：沒有安裝 API，改顯示「分享 → 加入主畫面」圖文說明
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isSafari = isIOS && /Safari/.test(navigator.userAgent) && !/CriOS|FxiOS|EdgiOS|Chrome/.test(navigator.userAgent);
+  const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches ||
+    window.matchMedia('(display-mode: minimal-ui)').matches || navigator.standalone === true;
+  let installPrompt = null;
+
+  function syncInstallBtn() {
+    const btn = $('installBtn');
+    if (!btn) return;
+    // 已經是全螢幕 APP 就不用再提示；其餘一律給按鈕，沒有安裝 API 時顯示手動步驟
+    btn.hidden = isStandalone();
+    btn.textContent = installPrompt ? '📲 安裝此應用程式' : '📲 安裝到主畫面';
+  }
+
+  function installHint() {
+    if (isSafari) {
+      return {
+        steps: ['點瀏覽器下方（或網址列旁）的 <b>分享</b> 圖示，就是「方框加上向上箭頭」那顆',
+                '在選單往下找到 <b>加入主畫面</b>，按 <b>新增</b>'],
+        note: '用 Chrome 或 Edge 開這個頁面，也可以從選單直接安裝。'
+      };
+    }
+    if (isIOS) {
+      return {
+        steps: ['點瀏覽器選單裡的 <b>分享 / 加到主畫面</b>',
+                '選擇 <b>加入主畫面</b>，按 <b>新增</b>'],
+        note: 'iOS 只支援用 Safari 安裝，其他瀏覽器請先複製網址到 Safari 開啟。'
+      };
+    }
+    return {
+      steps: ['點瀏覽器右上角的 <b>⋮ 選單</b>',
+              '選 <b>安裝應用程式</b>（或「加到主畫面」）'],
+      note: ''
+    };
+  }
+
+  function openInstallHelp() {
+    const { steps, note } = installHint();
+    $('installSteps').innerHTML = steps
+      .map((s, i) => `<div style="display:flex;gap:8px;align-items:flex-start"><b style="color:var(--accent)">${i + 1}.</b><span>${s}</span></div>`)
+      .join('');
+    $('installNote').textContent = note;
+    $('installModal').classList.add('open');
+    syncModalLock();
+    $('closeInstall').focus();
+  }
+  function closeInstallHelp() {
+    if (!$('installModal').classList.contains('open')) return;
+    $('installModal').classList.remove('open');
+    syncModalLock();
+  }
+
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    installPrompt = e;
+    syncInstallBtn();
+  });
+  window.addEventListener('appinstalled', () => {
+    installPrompt = null;
+    syncInstallBtn();
+    toast('已安裝到主畫面，可以全螢幕離線使用', 'ok');
+  });
+  if (window.matchMedia) {
+    const mq = window.matchMedia('(display-mode: standalone)');
+    if (mq.addEventListener) mq.addEventListener('change', syncInstallBtn);
+  }
+
+  $('installBtn').onclick = async () => {
+    if (installPrompt) {
+      installPrompt.prompt();
+      try {
+        const { outcome } = await installPrompt.userChoice;
+        if (outcome === 'accepted') toast('正在安裝…', 'ok');
+      } catch { /* 使用者取消 */ }
+      installPrompt = null;
+      syncInstallBtn();
+      return;
+    }
+    openInstallHelp();
+  };
+  $('closeInstall').onclick = closeInstallHelp;
+  $('installModal').onclick = e => { if (e.target === $('installModal')) closeInstallHelp(); };
+  syncInstallBtn();
+
+  // 主畫面捷徑：?do=scramble / ?do=tutorial
+  (function handleLaunchShortcut() {
+    const action = new URLSearchParams(location.search).get('do');
+    if (!action) return;
+    history.replaceState(null, '', location.pathname);
+    if (action === 'scramble') setTimeout(() => $('scrambleBtn').click(), 350);
+    else if (action === 'tutorial') setTimeout(openTutorial, 350);
+  })();
+
   if ('serviceWorker' in navigator) {
     // 首次安裝時沒有舊的 controller，不需重新載入
     let reloading = !navigator.serviceWorker.controller;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       if (!reloading) { reloading = true; location.reload(); }
     });
-    const promptUpdate = worker => {
-      if (confirm('發現新版本，要立即更新嗎？')) worker.postMessage('skipWaiting');
+    // 用頁內提示列取代 confirm()：standalone 模式不會被系統對話框打斷
+    let pendingWorker = null;
+    const showUpdateBar = worker => {
+      pendingWorker = worker;
+      $('updateBar').classList.add('show');
+      document.body.classList.add('has-update');
+    };
+    const hideUpdateBar = () => {
+      $('updateBar').classList.remove('show');
+      document.body.classList.remove('has-update');
+    };
+    $('updateApply').onclick = () => {
+      if (pendingWorker) pendingWorker.postMessage('skipWaiting');
+      hideUpdateBar();
     };
     navigator.serviceWorker.register('sw.js').then(reg => {
-      if (reg.waiting && navigator.serviceWorker.controller) promptUpdate(reg.waiting);
+      if (reg.waiting && navigator.serviceWorker.controller) showUpdateBar(reg.waiting);
       reg.addEventListener('updatefound', () => {
         const w = reg.installing;
         w.addEventListener('statechange', () => {
-          if (w.state === 'installed' && navigator.serviceWorker.controller) promptUpdate(w);
+          if (w.state === 'installed' && navigator.serviceWorker.controller) showUpdateBar(w);
         });
       });
       $('updateBtn').addEventListener('click', async () => {
@@ -2527,10 +2678,9 @@
         try {
           await reg.update();
           if (!reg.installing && !reg.waiting) {
-            // 頁面採網路優先，重新載入即可取得最新檔案
-            if (confirm('Service Worker 已是最新。要重新載入頁面取得最新內容嗎？')) location.reload();
+            toast('已是最新版本，重新載入可取得最新內容', 'ok');
           }
-        } catch { alert('無法連線檢查更新，目前為離線版本。'); }
+        } catch { toast('無法連線檢查更新，目前是離線版本', 'err'); }
         btn.textContent = '🔄 檢查更新';
       });
     });
