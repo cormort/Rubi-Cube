@@ -66,6 +66,19 @@
     .btn-icon.active { background: rgba(97,218,251,0.2); border-color: var(--accent); color: var(--accent); }
     .btn-icon:disabled { opacity: 0.45; cursor: not-allowed; }
     .lbl-short { display: none; }
+    /* 寬螢幕（≥860）header 已有 10 顆按鈕，再加安裝鍵會擠成兩排；
+       這裡的安裝入口交給瀏覽器自己的安裝圖示 / 分享選單，
+       手機和平板直向（<860，走 ⚙️ 面板）才顯示 App 內的安裝按鈕 */
+    @media (min-width: 860px) {
+      #installBtn { display: none !important; }
+    }
+    /* 安裝入口用強調色，讓它在設定面板裡跳出來 */
+    #installBtn {
+      border-color: rgba(97,218,251,0.55);
+      background: linear-gradient(135deg, rgba(97,218,251,0.24), rgba(97,218,251,0.1));
+      color: #cdf3ff; font-weight: 800;
+    }
+    #installBtn[hidden] { display: none !important; }
     /* 全域已關閉 tap-highlight，觸控必須靠 :active 給回饋，否則按下完全沒反應 */
     .btn-icon:active:not(:disabled), .tab-btn:active, .preset-item:active, .tut-tab:active,
     .runner-btn:active:not(:disabled), .alg-play:active:not(:disabled), .alg-setup:active:not(:disabled),
@@ -519,6 +532,7 @@
       }
       .header-more.open { display: grid; }
       .header-more .btn-icon { min-height: 44px; justify-content: flex-start; text-align: left; font-size: 0.76rem; }
+      .header-more #installBtn { grid-column: 1 / -1; justify-content: center; text-align: center; font-size: 0.82rem; }
       .btn-icon { min-height: 44px; }
       .tab-btn { min-height: 44px; }
       .lbl-full { display: none; }
