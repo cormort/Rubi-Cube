@@ -1827,13 +1827,25 @@
 
   // 鎖定狀態：只存一組，再鎖定會覆蓋；重設不會清掉。貼紙存面名，換配色後仍可還原
   let lockedState = null;
+  const snapshotCube = () => ({
+    faces: Object.fromEntries(slotList.map(id => [id, HEX_TO_FACE[stickerState[id]]])),
+    cubies: cubies.map(c => ({ p: [...c.p], o: c.o.map(r => [...r]) })),
+    history: [...moveHistory]
+  });
+  function applySnapshot(snap) {
+    for (const id of slotList) stickerState[id] = COLORS[snap.faces[id]];
+    cubies.forEach((c, idx) => {
+      c.p = [...snap.cubies[idx].p];
+      c.o = snap.cubies[idx].o.map(r => [...r]);
+      c.e.style.transform = toMatrix3d(c.o, c.p);
+    });
+    moveHistory = [...snap.history];
+    currentNodeKey = getStateKey();
+    visitedStates.add(currentNodeKey);
+  }
   $('lockStateBtn').addEventListener('click', () => {
     if (processing) { toast('請等待轉動完成'); return; }
-    lockedState = {
-      faces: Object.fromEntries(slotList.map(id => [id, HEX_TO_FACE[stickerState[id]]])),
-      cubies: cubies.map(c => ({ p: [...c.p], o: c.o.map(r => [...r]) })),
-      history: [...moveHistory]
-    };
+    lockedState = snapshotCube();
     $('restoreStateBtn').disabled = false;
     haptic(15);
     toast('已鎖定目前狀態');
@@ -1845,15 +1857,7 @@
     runnerSession = null;
     setNetPairs(null);
     $('algRunnerBar').classList.remove('active');
-    for (const id of slotList) stickerState[id] = COLORS[lockedState.faces[id]];
-    cubies.forEach((c, idx) => {
-      c.p = [...lockedState.cubies[idx].p];
-      c.o = lockedState.cubies[idx].o.map(r => [...r]);
-      c.e.style.transform = toMatrix3d(c.o, c.p);
-    });
-    moveHistory = [...lockedState.history];
-    currentNodeKey = getStateKey();
-    visitedStates.add(currentNodeKey);
+    applySnapshot(lockedState);
     animState = null;
     $('projHint').textContent = '已回到鎖定狀態';
     $('orderVal').textContent = 1;
@@ -2551,10 +2555,36 @@
     }, 20000);
   });
 
+  // 本機儲存：切到背景 / 關閉時存下方塊與鎖定狀態，下次開啟自動還原
+  // （轉動中佇列裡尚未執行的步驟不保存；貼紙存面名，與配色無關）
+  const SAVE_KEY = 'rubi-cube-state-v1';
+  function saveState() {
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify({ cube: snapshotCube(), locked: lockedState }));
+    } catch { /* 無痕模式或空間不足：略過 */ }
+  }
+  function restoreSavedState() {
+    try {
+      const data = JSON.parse(localStorage.getItem(SAVE_KEY));
+      if (!data) return;
+      const valid = snap => snap && snap.cubies.length === cubies.length && Array.isArray(snap.history) &&
+        slotList.every(id => COLORS[snap.faces[id]]);
+      if (!valid(data.cube)) return;
+      applySnapshot(data.cube);
+      if (valid(data.locked)) {
+        lockedState = data.locked;
+        $('restoreStateBtn').disabled = false;
+      }
+    } catch { /* 資料毀損：從復原狀態開始 */ }
+  }
+  document.addEventListener('visibilitychange', () => { if (document.hidden) saveState(); });
+  window.addEventListener('pagehide', saveState);
+
   // 初始化啟動
   initStickerState();
   build3DCube();
   resetExplored();
+  restoreSavedState();
   updateUI();
   updateViewAndBillboards();
   requestAnimationFrame(renderProjection);
@@ -2680,7 +2710,7 @@
     if (!backGuardArmed) return;
     backGuardArmed = false;
     if (!hasUnsavedState()) { history.back(); return; }
-    toast('再按一次返回鍵離開（目前的方塊狀態不會保存）');
+    toast('再按一次返回鍵離開');
     // 留在原頁、不補守門紀錄：兩秒內再按返回就照常離開；逾時則重新守門
     clearTimeout(backConfirmTimer);
     backConfirmTimer = setTimeout(() => { backConfirmTimer = null; armBackGuard(); }, 2000);
