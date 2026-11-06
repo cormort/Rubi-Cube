@@ -2687,40 +2687,11 @@
     else if (action === 'tutorial') setTimeout(openTutorial, 350);
   })();
 
-  // 離開保護：方塊未復原或有鎖定狀態時，離開前需再確認一次（狀態不會保存）
-  let allowLeave = false;
-  const hasUnsavedState = () => !allowLeave && (getStateKey() !== SOLVED_KEY || lockedState !== null);
-  window.addEventListener('beforeunload', e => {
-    if (!hasUnsavedState()) return;
-    e.preventDefault();
-    e.returnValue = '';
-  });
-
-  // 返回鍵（Android / 已安裝的 app）：先塞一筆守門紀錄，第一次返回只提示，再按一次才離開。
-  // 守門紀錄要在使用者互動後才加，否則瀏覽器會略過它
-  let backGuardArmed = false;
-  let backConfirmTimer = null;
-  const armBackGuard = () => {
-    if (backGuardArmed || backConfirmTimer) return;
-    history.pushState({ backGuard: true }, '');
-    backGuardArmed = true;
-  };
-  ['pointerdown', 'keydown'].forEach(t => window.addEventListener(t, armBackGuard, { capture: true }));
-  window.addEventListener('popstate', () => {
-    if (!backGuardArmed) return;
-    backGuardArmed = false;
-    if (!hasUnsavedState()) { history.back(); return; }
-    toast('再按一次返回鍵離開');
-    // 留在原頁、不補守門紀錄：兩秒內再按返回就照常離開；逾時則重新守門
-    clearTimeout(backConfirmTimer);
-    backConfirmTimer = setTimeout(() => { backConfirmTimer = null; armBackGuard(); }, 2000);
-  });
-
   if ('serviceWorker' in navigator) {
     // 首次安裝時沒有舊的 controller，不需重新載入
     let reloading = !navigator.serviceWorker.controller;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (!reloading) { reloading = true; allowLeave = true; location.reload(); }
+      if (!reloading) { reloading = true; location.reload(); }
     });
     // 用頁內提示列取代 confirm()：standalone 模式不會被系統對話框打斷
     let pendingWorker = null;
@@ -2758,7 +2729,7 @@
       });
     });
   } else {
-    $('updateBtn').addEventListener('click', () => { allowLeave = true; location.reload(); });
+    $('updateBtn').addEventListener('click', () => location.reload());
   }
 })();
 </script>
