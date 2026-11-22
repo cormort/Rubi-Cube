@@ -80,7 +80,7 @@
     }
     #installBtn[hidden] { display: none !important; }
     /* 全域已關閉 tap-highlight，觸控必須靠 :active 給回饋，否則按下完全沒反應 */
-    .btn-icon:active:not(:disabled), .tab-btn:active, .preset-item:active, .tut-tab:active,
+    .btn-icon:active:not(:disabled), .tab-btn:active, .preset-item:active, .tut-tab:active, .filter-chip:active,
     .runner-btn:active:not(:disabled), .alg-play:active:not(:disabled), .alg-setup:active:not(:disabled),
     .dpad-btn:active:not(:disabled), .action-btn:active:not(:disabled) {
       transform: scale(0.96); filter: brightness(1.25);
@@ -219,9 +219,9 @@
     }
     .cube-stage.tick::after { box-shadow: inset 0 0 0 2px rgba(97,218,251,0.55); }
 
-    /* 觸控裝置不顯示鍵盤提示，省下一行高度 */
+    /* 觸控／窄螢幕不顯示鍵盤提示，省下一行高度 */
     .hint-touch { display: none; }
-    @media (hover: none) {
+    @media (hover: none), (max-width: 859px) {
       .hint-touch { display: inline; }
       .hint-pointer { display: none; }
     }
@@ -335,12 +335,13 @@
       position: fixed; inset: 0; background: rgba(0,0,0,0.65);
       backdrop-filter: blur(4px); display: none; z-index: 100; place-items: center;
       overscroll-behavior: contain;
+      padding: calc(10px + env(safe-area-inset-top, 0px)) 10px calc(10px + env(safe-area-inset-bottom, 0px));
     }
     .modal-backdrop.open { display: grid; }
     .modal-sheet {
-      width: 90%; max-width: 440px; background: var(--panel); border-radius: 16px;
+      width: 100%; max-width: 440px; background: var(--panel); border-radius: 16px;
       border: 1px solid var(--line); padding: 18px; display: flex; flex-direction: column; gap: 10px;
-      max-height: 80vh; overflow: auto;
+      max-height: 84vh; max-height: 84dvh; overflow: auto;
       touch-action: pan-y; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
     }
     /* 手機開窗時鎖住背景頁面，避免手指拖到 backdrop 時把背後的頁面捲走 */
@@ -349,7 +350,7 @@
       /* 行動裝置關掉 backdrop-filter：整頁模糊成本高且容易掉幀 */
       .modal-backdrop { backdrop-filter: none; background: rgba(3,8,16,0.86); }
     }
-    .sheet-title { display: flex; justify-content: space-between; align-items: center; font-weight: 800; }
+    .sheet-title { display: flex; justify-content: space-between; align-items: center; font-weight: 800; flex-shrink: 0; }
     .preset-item {
       padding: 13px 14px; border-radius: 10px; background: var(--panel-elevated);
       border: 1px solid var(--line); text-align: left; color: var(--ink); font-weight: 600; font-size: 0.82rem;
@@ -364,10 +365,10 @@
     .tut-step .preset-item { display: block; width: 100%; margin-top: 6px; font-family: ui-monospace, monospace; }
 
     /* OLL / PLL 速解表與彈窗切換 */
-    .modal-sheet.wide { max-width: 780px; width: 95%; max-height: 86vh; }
+    .modal-sheet.wide { max-width: 820px; width: 100%; max-height: 88vh; max-height: 88dvh; overflow: hidden; }
     .tut-tabs {
       display: flex; gap: 6px; background: rgba(7, 16, 29, 0.8); padding: 4px;
-      border-radius: 10px; border: 1px solid var(--line);
+      border-radius: 10px; border: 1px solid var(--line); flex-shrink: 0;
     }
     .tut-tab {
       flex: 1; padding: 7px 6px; font-size: 0.78rem; font-weight: 700; color: var(--muted);
@@ -376,10 +377,26 @@
     .tut-tab.active {
       background: linear-gradient(135deg, #1881b0, #14598a); color: #fff;
     }
-    .tut-pane { display: none; flex-direction: column; gap: 10px; overflow: auto; padding-right: 2px; }
+    .tut-pane {
+      display: none; flex: 1; min-height: 0; flex-direction: column; gap: 10px;
+      overflow-y: auto; overflow-x: hidden; padding-right: 2px;
+      -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+    }
     .tut-pane.active { display: flex; }
+    .alg-filter-bar {
+      display: flex; flex-wrap: wrap; gap: 5px; flex-shrink: 0;
+    }
+    .filter-chip {
+      padding: 4px 9px; font-size: 0.72rem; font-weight: 700; min-height: 30px;
+      border-radius: 999px; border: 1px solid var(--line); background: var(--panel-elevated);
+      color: var(--muted); cursor: pointer; transition: all 0.12s ease;
+    }
+    .filter-chip:hover { border-color: var(--accent); color: var(--ink); }
+    .filter-chip.active {
+      background: linear-gradient(135deg, #1881b0, #14598a); border-color: var(--accent); color: #fff;
+    }
     .alg-grid {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 8px;
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 8px;
     }
     .alg-card {
       display: flex; align-items: center; gap: 10px; padding: 9px 10px;
@@ -401,7 +418,7 @@
       background: rgba(7, 16, 29, 0.75); border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);
     }
     .alg-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-    .alg-header { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+    .alg-header { display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: wrap; }
     .alg-id { font-size: 0.8rem; font-weight: 800; color: var(--accent); }
     .alg-tag { font-size: 0.65rem; padding: 1px 6px; border-radius: 999px; background: rgba(53,211,154,0.18); color: var(--green); font-weight: 700; }
     .alg-btns { display: flex; flex-direction: column; gap: 4px; }
@@ -420,27 +437,39 @@
       font-size: 0.68rem; font-weight: 700; cursor: pointer; white-space: nowrap;
     }
     .alg-setup:hover:not(:disabled) { background: rgba(255,159,67,0.25); }
+    @media (max-width: 600px) {
+      .modal-sheet { padding: 12px; border-radius: 14px; gap: 8px; }
+      .alg-grid { grid-template-columns: 1fr; }
+      .alg-card { padding: 8px; gap: 8px; }
+      .alg-diagram { width: 52px; height: 52px; }
+      .tut-tab { font-size: 0.72rem; padding: 6px 4px; line-height: 1.25; }
+    }
 
-    /* 3D 舞台動態解法追蹤橫幅 (HUD) */
+    /* 動態解法步驟追蹤器（置於 3D 舞台下方，不遮擋方塊） */
     .alg-runner-bar {
-      position: absolute; left: 8px; right: 8px; bottom: 8px;
-      background: rgba(10, 20, 34, 0.94); border: 1px solid rgba(97, 218, 251, 0.45);
-      border-radius: 10px; padding: 7px 10px; display: none; flex-direction: column; gap: 6px;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.6); backdrop-filter: blur(6px); z-index: 10;
+      margin-top: 8px;
+      background: rgba(10, 20, 34, 0.96); border: 1px solid rgba(97, 218, 251, 0.45);
+      border-radius: 12px; padding: 10px; display: none; flex-direction: column; gap: 7px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.35);
     }
     .alg-runner-bar.active { display: flex; }
-    .alg-runner-top {
-      display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 0.74rem; flex-wrap: wrap;
+    .alg-runner-header {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
     }
-    .alg-runner-meta { display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1; }
-    .alg-runner-title { font-weight: 800; color: var(--accent); white-space: nowrap; }
-    .alg-runner-formula { font-family: ui-monospace, monospace; color: var(--muted); font-size: 0.68rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .alg-runner-controls { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+    .alg-runner-title { font-weight: 800; font-size: 0.78rem; color: var(--accent); line-height: 1.3; min-width: 0; }
+    .alg-runner-formula {
+      font-family: ui-monospace, monospace; color: #b7d7f5; font-size: 0.74rem; line-height: 1.4;
+      white-space: normal; word-break: break-word; overflow: visible;
+    }
+    .alg-runner-formula:empty { display: none; }
+    .alg-runner-controls { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
     .runner-btn {
-      padding: 3px 7px; border-radius: 6px; font-size: 0.68rem; font-weight: 700;
+      padding: 5px 9px; border-radius: 7px; font-size: 0.72rem; font-weight: 700;
       background: var(--panel-elevated); border: 1px solid #2b4c70; color: var(--ink);
-      cursor: pointer; transition: all 0.12s ease; min-height: 24px;
+      cursor: pointer; transition: all 0.12s ease; min-height: 32px; touch-action: manipulation;
     }
+    .runner-btn.runner-close { flex-shrink: 0; min-width: 32px; min-height: 30px; padding: 2px 8px; }
+    #runnerNextBtn { flex: 1 1 auto; }
     .runner-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
     .runner-btn:disabled { opacity: 0.4; cursor: not-allowed; }
     .runner-btn.primary {
@@ -450,7 +479,8 @@
       background: rgba(255, 159, 67, 0.2); border-color: var(--orange); color: var(--orange);
     }
     .alg-runner-steps {
-      display: flex; flex-wrap: wrap; gap: 4px; align-items: center; max-height: 52px; overflow: auto;
+      display: flex; flex-wrap: wrap; gap: 4px; align-items: center; max-height: 132px;
+      overflow-y: auto; -webkit-overflow-scrolling: touch;
     }
     .alg-step-pill {
       padding: 2px 6px; border-radius: 5px; font-family: ui-monospace, monospace;
@@ -551,6 +581,15 @@
       .pin-b { transform: translateZ(-128px); }
       .pin-r { transform: translateX(128px); }
       .pin-l { transform: translateX(-128px); }
+      .runner-btn { min-height: 38px; font-size: 0.75rem; }
+      #col-left.has-runner .cube-stage { height: clamp(248px, 37vh, 290px); }
+      #col-left.has-runner .scene { transform: scale(0.92); }
+      #col-left.has-runner .pin-u { transform: translateY(-102px); }
+      #col-left.has-runner .pin-d { transform: translateY(102px); }
+      #col-left.has-runner .pin-f { transform: translateZ(102px); }
+      #col-left.has-runner .pin-b { transform: translateZ(-102px); }
+      #col-left.has-runner .pin-r { transform: translateX(102px); }
+      #col-left.has-runner .pin-l { transform: translateX(-102px); }
     }
 
     /* 超窄螢幕 (<= 390px)：再縮減間距與字級，觸控目標仍維持 44px */
@@ -599,12 +638,14 @@
       .mobile-tab-view.active > .card-title { grid-column: 1 / -1; }
       /* 橫放高度吃緊：說明文字先收起來，讓方塊完整落在第一屏 */
       .mobile-tab-view.active > .card-title small { display: none; }
-      .mobile-tab-view.active > .cube-stage { height: calc(100vh - 190px); min-height: 190px; }
-      .mobile-tab-view.active .spatial-deck { margin-top: 0; }
-      .mobile-tab-view.active > .mini-status { grid-column: 1 / -1; margin-top: 4px; }
+      .mobile-tab-view.active > .cube-stage,
+      #col-left.has-runner .cube-stage { grid-column: 1; grid-row: 2 / span 2; height: calc(100vh - 165px); height: calc(100dvh - 165px); min-height: 190px; }
+      .mobile-tab-view.active > .alg-runner-bar { grid-column: 2; grid-row: 2; margin-top: 0; }
+      .mobile-tab-view.active > .spatial-deck { grid-column: 2; grid-row: 3; margin-top: 0; }
+      .mobile-tab-view.active > .mini-status { grid-column: 1 / -1; grid-row: 4; margin-top: 4px; }
       .mobile-tab-view.active > .canvas-wrap { grid-column: 1 / -1; }
       /* 橫放時舞台矮，方塊縮小一點才留得下面標籤 */
-      .scene { transform: scale(0.82); }
+      .scene, #col-left.has-runner .scene { transform: scale(0.82); }
       .pin-u { transform: translateY(-112px); }
       .pin-d { transform: translateY(112px); }
       .pin-f { transform: translateZ(112px); }
@@ -709,23 +750,21 @@
             </div>
           </div>
         </div>
+      </div>
 
-        <!-- 動態解法步驟追蹤器 -->
-        <div class="alg-runner-bar" id="algRunnerBar" aria-live="polite">
-          <div class="alg-runner-top">
-            <div class="alg-runner-meta">
-              <span class="alg-runner-title" id="algRunnerTitle">動態解法</span>
-              <span class="alg-runner-formula" id="algRunnerFormula"></span>
-            </div>
-            <div class="alg-runner-controls">
-              <button class="runner-btn" id="runnerModeBtn" title="切換單步暫停或自動連播">🎯 單步模式: 關</button>
-              <button class="runner-btn primary" id="runnerNextBtn" title="執行下一步">▶ 繼續下一步</button>
-              <button class="runner-btn" id="runnerAutoBtn" title="自動連續播放剩餘步驟">⏩ 連播</button>
-              <button class="runner-btn" id="runnerCloseBtn" aria-label="關閉追蹤器" title="關閉">✕</button>
-            </div>
-          </div>
-          <div class="alg-runner-steps" id="algRunnerSteps"></div>
+      <!-- 動態解法步驟追蹤器（置於 3D 舞台下方，避免遮擋方塊） -->
+      <div class="alg-runner-bar" id="algRunnerBar" aria-live="polite">
+        <div class="alg-runner-header">
+          <span class="alg-runner-title" id="algRunnerTitle">動態解法</span>
+          <button class="runner-btn runner-close" id="runnerCloseBtn" aria-label="關閉追蹤器" title="關閉">✕</button>
         </div>
+        <div class="alg-runner-formula" id="algRunnerFormula"></div>
+        <div class="alg-runner-controls">
+          <button class="runner-btn" id="runnerModeBtn" title="切換單步暫停或自動連播">🎯 單步模式: 關</button>
+          <button class="runner-btn primary" id="runnerNextBtn" title="執行下一步">▶ 繼續下一步</button>
+          <button class="runner-btn" id="runnerAutoBtn" title="自動連續播放剩餘步驟">⏩ 連播</button>
+        </div>
+        <div class="alg-runner-steps" id="algRunnerSteps"></div>
       </div>
 
       <!-- 空間十字羅盤控制器 -->
@@ -836,8 +875,8 @@
 
     <div class="tut-tabs" role="tablist" aria-label="解法分類">
       <button class="tut-tab active" role="tab" data-tut-tab="lbl" aria-selected="true">🌱 層先法 (7 步)</button>
-      <button class="tut-tab" role="tab" data-tut-tab="oll" aria-selected="false">🟨 OLL 頂面定向 (40)</button>
-      <button class="tut-tab" role="tab" data-tut-tab="pll" aria-selected="false">🔄 PLL 頂層置換 (14)</button>
+      <button class="tut-tab" role="tab" data-tut-tab="oll" aria-selected="false">🟨 OLL 頂面定向 (57)</button>
+      <button class="tut-tab" role="tab" data-tut-tab="pll" aria-selected="false">🔄 PLL 頂層置換 (21)</button>
     </div>
 
     <div class="tut-pane active" id="tut-pane-lbl">
@@ -849,15 +888,31 @@
 
     <div class="tut-pane" id="tut-pane-oll">
       <p style="margin:0;font-size:0.78rem;color:var(--muted);line-height:1.6">
-        頂面定向 (Orientation of Last Layer)：將頂層全部翻成同色。點「演練」可從復原狀態擺出該題型，點公式即可執行解開（支援雙層 r/l/u/d/f、中層 M/S 與轉體 x/y 自動換算）。
+        頂面定向 (Orientation of Last Layer)：完整 57 式。點「擺出狀態」可從復原狀態擺出題型，點公式即可執行解開（支援雙層 r/l/u/d/f 與 Rw/Lw 等記法、中層 M/S 與轉體 x/y 自動換算）。
       </p>
+      <div class="alg-filter-bar" id="ollFilterBar" role="group" aria-label="OLL 分類篩選">
+        <button class="filter-chip active" type="button" data-oll-cat="all">全部 (57)</button>
+        <button class="filter-chip" type="button" data-oll-cat="cross">十字 (7)</button>
+        <button class="filter-chip" type="button" data-oll-cat="dot">點形 (8)</button>
+        <button class="filter-chip" type="button" data-oll-cat="line">線/L/方 (14)</button>
+        <button class="filter-chip" type="button" data-oll-cat="tcpw">T/C/P/W (10)</button>
+        <button class="filter-chip" type="button" data-oll-cat="fish">魚/閃電/騎士 (18)</button>
+      </div>
       <div class="alg-grid" id="ollGrid"></div>
     </div>
 
     <div class="tut-pane" id="tut-pane-pll">
       <p style="margin:0;font-size:0.78rem;color:var(--muted);line-height:1.6">
-        頂層置換 (Permutation of Last Layer)：在頂面同色後，將頂層邊塊與角塊移回正確位置。圖示箭頭代表公式對頂層塊的置換軌跡；點「演練」可擺出待解狀態。
+        頂層置換 (Permutation of Last Layer)：完整 21 式。在頂面同色後將頂層邊塊與角塊移回正確位置。圖示箭頭代表公式對頂層塊的置換軌跡；點「擺出狀態」可擺出待解狀態。
       </p>
+      <div class="alg-filter-bar" id="pllFilterBar" role="group" aria-label="PLL 分類篩選">
+        <button class="filter-chip active" type="button" data-pll-cat="all">全部 (21)</button>
+        <button class="filter-chip" type="button" data-pll-cat="edge">邊塊 (4)</button>
+        <button class="filter-chip" type="button" data-pll-cat="corner">角塊 (3)</button>
+        <button class="filter-chip" type="button" data-pll-cat="adj">鄰角 (6)</button>
+        <button class="filter-chip" type="button" data-pll-cat="diag">對角 (4)</button>
+        <button class="filter-chip" type="button" data-pll-cat="g">G循環 (4)</button>
+      </div>
       <div class="alg-grid" id="pllGrid"></div>
     </div>
   </div>
@@ -1856,7 +1911,7 @@
     queue.length = 0;
     runnerSession = null;
     setNetPairs(null);
-    $('algRunnerBar').classList.remove('active');
+    setRunnerVisible(false);
     applySnapshot(lockedState);
     animState = null;
     $('projHint').textContent = '已回到鎖定狀態';
@@ -1873,7 +1928,7 @@
     build3DCube();
     resetExplored();
     animState = null;
-    $('algRunnerBar').classList.remove('active');
+    setRunnerVisible(false);
     $('projHint').textContent = '等候轉動';
     $('orderVal').textContent = 1;
     $('cyclesVal').textContent = 0;
@@ -1925,7 +1980,7 @@
     F: [0, 0, 1],  B: [0, 0, -1]
   };
   function expandExtendedAlg(algStr) {
-    let s = algStr.replace(/\+/g, ' ').replace(/['’′]/g, "'");
+    let s = algStr.replace(/\+/g, ' ').replace(/['’′]/g, "'").replace(/([UDFBLR])w/g, (_, f) => f.toLowerCase());
     let prev;
     do {
       prev = s;
@@ -2001,68 +2056,120 @@
     return st;
   }
 
-  // OLL (40 組) 與 PLL (14 組) 完整公式庫（依附圖順序排列）
+  // OLL (完整 57 式) 與 PLL (完整 21 式) 公式庫
   const OLL_CASES = [
-    { id: 'O1',  title: 'O1',  algs: ["(R U2 R') (R' F R F') U2 (R' F R F')"] },
-    { id: 'O35', title: 'O35', algs: ["(R U2 R') (R' F R F') (R U2 R')"] },
-    { id: 'O55', title: 'O55', algs: ["R U2 R2 (U' R U' R') U2 (F R F')"] },
-    { id: 'O18', title: 'O18', algs: ["(R U2 R') (R' F R F') U2 M' U R U' r'"] },
-    { id: 'O53', title: 'O53', algs: ["(r' U' r) (R' U' R U)x2 (r' U r)"] },
-    { id: 'O15', title: 'O15', algs: ["(r' U' r) (R' U' R U) (r' U r)", "L' B' L (R' U' R U) L' B L"] },
-    { id: 'O56', title: 'O56 (= O53⁻¹)', algs: ["(r' U' r) (U' R' U R)x2 (r' U r)"] },
-    { id: 'O52', title: 'O52', algs: ["R' (F' U' F U') (R U R' U) R"] },
-    { id: 'O17', title: 'O17', algs: ["(R U R' U) (R' F R F') U2 (R' F R F')", "f (R U R' U') f' U' (R U R' U') (R' F R F')"] },
-    { id: 'O20', title: 'O20', algs: ["M U (R U R' U') M2 (U R U' r')"] },
-    { id: 'O34', title: 'O34', algs: ["(R U R' U') B' (R' F R F') B"] },
-    { id: 'O46', title: 'O46', algs: ["R' U' (R' F R F') U R"] },
-    { id: 'O7',  title: 'O7',  algs: ["r U R' U R U2 r'"] },
-    { id: 'O41', title: 'O41', algs: ["R U' R' U2 R U y (R U' R' U') F'"] },
-    { id: 'O3',  title: 'O3: O44 + U + O45', algs: ["F (U R U' R') F' U F (R U R' U') F'"] },
-    { id: 'O9',  title: 'O9',  algs: ["R' U' R y (r U' r' U) r U r'"] },
-    { id: 'O2',  title: 'O2',  algs: ["F (R U R' U') F' + f (R U R' U') f'"] },
-    { id: 'O19', title: 'O19', algs: ["M U (R U R' U') M' (R' F R F')"] },
-    { id: 'O51', title: 'O51', algs: ["F (U R U' R')x2 F'"] },
-    { id: 'O12', title: 'O12', algs: ["M' R' U' R U' R' U2 R U' M"] },
-    { id: 'O14', title: 'O14', algs: ["l' U l (U l' U' l) y L U' L'"] },
-    { id: 'O38', title: 'O38', algs: ["(L U L' U) (L U' L' U') (L' B L B')"] },
-    { id: 'O48', title: 'O48', algs: ["F (R U R' U')x2 F'"] },
-    { id: 'O49', title: 'O49', algs: ["R B' R2 F R2 B R2 F' R"] },
-    { id: 'O6',  title: 'O6',  algs: ["r U2 (R' U' R U') r'", "L F2 R' F' R F' L'"] },
-    { id: 'O40', title: 'O40', algs: ["R' F (R U R' U') F' U R"] },
-    { id: 'O32', title: 'O32', algs: ["L U F' (U' L' U L) F L'", "y2 S + (R U R' U') (R' F R f')"] },
-    { id: 'O44', title: 'O44', algs: ["F (U R U' R') F'"] },
-    { id: 'O57', title: 'O57', algs: ["(R U R' U') M' (U R U' r')"] },
-    { id: 'O28', title: 'O28', algs: ["(r U R' U') M (U R U' R')"] },
-    { id: 'O37', title: 'O37', algs: ["(F R' F' R) (U R U' R')", "F R U' R' U' R U R' F'"] },
-    { id: 'O29', title: 'O29', algs: ["(R U R') (U' R U' R') (F' U' F) (R U R')"] },
-    { id: 'O45', title: 'O45', algs: ["F (R U R' U') F'"] },
-    { id: 'O33', title: 'O33', algs: ["(R U R' U') (R' F R F')"] },
-    { id: 'O21', title: 'O21', algs: ["F (R U R' U')x3 F'"] },
-    { id: 'O25', title: 'O25', algs: ["R' F' L' F R F' L F"] },
-    { id: 'O27', title: 'O27', algs: ["R' U2 R U R' U R"] },
-    { id: 'O24', title: 'O24', algs: ["R' F' L F R F' L' F"] },
-    { id: 'O22', title: 'O22 (O27x2 or ...)', algs: ["R U2 (R2 U' R2 U' R2) U2 R"] },
-    { id: 'O23', title: 'O23', algs: ["(R2 D R' U2) (R D' R' U2) R'"] }
+    { id: 'O1',  cat: 'dot',   title: 'O1 · 點形',               algs: ["(R U2 R') (R' F R F') U2 (R' F R F')"] },
+    { id: 'O2',  cat: 'dot',   title: 'O2 · 點形',               algs: ["F (R U R' U') F' + f (R U R' U') f'"] },
+    { id: 'O3',  cat: 'dot',   title: 'O3 · 點形',               algs: ["F (U R U' R') F' U F (R U R' U') F'"] },
+    { id: 'O4',  cat: 'dot',   title: 'O4 · 點形',               algs: ["f (R U R' U') f' U F (R U R' U') F'"] },
+    { id: 'O5',  cat: 'line',  title: 'O5 · 方形',               algs: ["r' U2 (R U R' U) r"] },
+    { id: 'O6',  cat: 'line',  title: 'O6 · 方形',               algs: ["r U2 (R' U' R U') r'", "L F2 R' F' R F' L'"] },
+    { id: 'O7',  cat: 'fish',  title: 'O7 · 小閃電',             algs: ["r U R' U R U2 r'"] },
+    { id: 'O8',  cat: 'fish',  title: 'O8 · 小閃電',             algs: ["r' U' R U' R' U2 r"] },
+    { id: 'O9',  cat: 'fish',  title: 'O9 · 魚形',               algs: ["R' U' R y (r U' r' U) r U r'"] },
+    { id: 'O10', cat: 'fish',  title: 'O10 · 魚形',              algs: ["(R U R' U) (R' F R F') R U2 R'"] },
+    { id: 'O11', cat: 'fish',  title: 'O11 · 小閃電',            algs: ["r' (R2 U R' U) (R U2 R' U) M'"] },
+    { id: 'O12', cat: 'fish',  title: 'O12 · 小閃電',            algs: ["M' R' U' R U' R' U2 R U' M"] },
+    { id: 'O13', cat: 'fish',  title: 'O13 · 騎士',              algs: ["f (R U R2 U' R' U R U') f'"] },
+    { id: 'O14', cat: 'fish',  title: 'O14 · 騎士',              algs: ["l' U l (U l' U' l) y L U' L'"] },
+    { id: 'O15', cat: 'fish',  title: 'O15 · 騎士',              algs: ["(r' U' r) (R' U' R U) (r' U r)", "L' B' L (R' U' R U) L' B L"] },
+    { id: 'O16', cat: 'fish',  title: 'O16 · 騎士',              algs: ["(r U r') (R U R' U') (r U' r')"] },
+    { id: 'O17', cat: 'dot',   title: 'O17 · 點形',              algs: ["(R U R' U) (R' F R F') U2 (R' F R F')", "f (R U R' U') f' U' (R U R' U') (R' F R F')"] },
+    { id: 'O18', cat: 'dot',   title: 'O18 · 點形',              algs: ["(R U2 R') (R' F R F') U2 M' U R U' r'"] },
+    { id: 'O19', cat: 'dot',   title: 'O19 · 點形',              algs: ["M U (R U R' U') M' (R' F R F')"] },
+    { id: 'O20', cat: 'dot',   title: 'O20 · 點形',              algs: ["M U (R U R' U') M2 (U R U' r')"] },
+    { id: 'O21', cat: 'cross', title: 'O21 · 十字 (H)',          algs: ["F (R U R' U')x3 F'"] },
+    { id: 'O22', cat: 'cross', title: 'O22 · 十字 (Pi)',         algs: ["R U2 (R2 U' R2 U' R2) U2 R"] },
+    { id: 'O23', cat: 'cross', title: 'O23 · 十字 (雙頭燈 U)',    algs: ["(R2 D R' U2) (R D' R' U2) R'"] },
+    { id: 'O24', cat: 'cross', title: 'O24 · 十字 (變色龍 T)',    algs: ["R' F' L F R F' L' F"] },
+    { id: 'O25', cat: 'cross', title: 'O25 · 十字 (蝴蝶結 L)',    algs: ["R' F' L' F R F' L F"] },
+    { id: 'O26', cat: 'cross', title: 'O26 · 反小魚 (Anti-Sune)', algs: ["R U2 R' U' R U' R'"] },
+    { id: 'O27', cat: 'cross', title: 'O27 · 小魚 (Sune)',        algs: ["R U R' U R U2 R'"] },
+    { id: 'O28', cat: 'line',  title: 'O28 · 全角定向',          algs: ["(r U R' U') M (U R U' R')"] },
+    { id: 'O29', cat: 'fish',  title: 'O29 · 怪異形',            algs: ["(R U R') (U' R U' R') (F' U' F) (R U R')"] },
+    { id: 'O30', cat: 'fish',  title: 'O30 · 怪異形',            algs: ["f (R U R2 U' R' U R2 U' R') f'"] },
+    { id: 'O31', cat: 'tcpw',  title: 'O31 · P形',               algs: ["R' U' F (U R U' R') F' R"] },
+    { id: 'O32', cat: 'tcpw',  title: 'O32 · P形',               algs: ["L U F' (U' L' U L) F L'", "y2 S + (R U R' U') (R' F R f')"] },
+    { id: 'O33', cat: 'tcpw',  title: 'O33 · T形',               algs: ["(R U R' U') (R' F R F')"] },
+    { id: 'O34', cat: 'tcpw',  title: 'O34 · C形',               algs: ["(R U R' U') B' (R' F R F') B"] },
+    { id: 'O35', cat: 'fish',  title: 'O35 · 魚形',              algs: ["(R U2 R') (R' F R F') (R U2 R')"] },
+    { id: 'O36', cat: 'tcpw',  title: 'O36 · W形',               algs: ["(L' U' L U') (L' U L U) (L F' L' F)"] },
+    { id: 'O37', cat: 'fish',  title: 'O37 · 魚形',              algs: ["(F R' F' R) (U R U' R')", "F R U' R' U' R U R' F'"] },
+    { id: 'O38', cat: 'tcpw',  title: 'O38 · W形',               algs: ["(L U L' U) (L U' L' U') (L' B L B')"] },
+    { id: 'O39', cat: 'fish',  title: 'O39 · 大閃電',            algs: ["L F' (L' U' L U) F U' L'"] },
+    { id: 'O40', cat: 'fish',  title: 'O40 · 大閃電',            algs: ["R' F (R U R' U') F' U R"] },
+    { id: 'O41', cat: 'fish',  title: 'O41 · 怪異形',            algs: ["R U' R' U2 R U y (R U' R' U') F'"] },
+    { id: 'O42', cat: 'fish',  title: 'O42 · 怪異形',            algs: ["(R' U' R U' R' U2 R) F (R U R' U') F'"] },
+    { id: 'O43', cat: 'tcpw',  title: 'O43 · P形',               algs: ["f' (L' U' L U) f"] },
+    { id: 'O44', cat: 'tcpw',  title: 'O44 · P形',               algs: ["F (U R U' R') F'"] },
+    { id: 'O45', cat: 'tcpw',  title: 'O45 · T形',               algs: ["F (R U R' U') F'"] },
+    { id: 'O46', cat: 'tcpw',  title: 'O46 · C形',               algs: ["R' U' (R' F R F') U R"] },
+    { id: 'O47', cat: 'line',  title: 'O47 · L形',               algs: ["F' (L' U' L U)x2 F", "R' U' (R' F R F')x2 U R"] },
+    { id: 'O48', cat: 'line',  title: 'O48 · L形',               algs: ["F (R U R' U')x2 F'"] },
+    { id: 'O49', cat: 'line',  title: 'O49 · L形',               algs: ["R B' R2 F R2 B R2 F' R"] },
+    { id: 'O50', cat: 'line',  title: 'O50 · L形',               algs: ["r' U r2 U' r2 U' r2 U r'"] },
+    { id: 'O51', cat: 'line',  title: 'O51 · 線形',              algs: ["F (U R U' R')x2 F'"] },
+    { id: 'O52', cat: 'line',  title: 'O52 · 線形',              algs: ["R' (F' U' F U') (R U R' U) R"] },
+    { id: 'O53', cat: 'line',  title: 'O53 · L形',               algs: ["(r' U' r) (R' U' R U)x2 (r' U r)"] },
+    { id: 'O54', cat: 'line',  title: 'O54 · L形',               algs: ["(r U R' U) (R U' R' U) R U2 r'"] },
+    { id: 'O55', cat: 'line',  title: 'O55 · 線形',              algs: ["R U2 R2 (U' R U' R') U2 (F R F')"] },
+    { id: 'O56', cat: 'line',  title: 'O56 · 線形',              algs: ["(r' U' r) (U' R' U R)x2 (r' U r)"] },
+    { id: 'O57', cat: 'line',  title: 'O57 · 全角定向',          algs: ["(R U R' U') M' (U R U' r')"] }
   ];
 
   const PLL_CASES = [
-    { id: 'G1', title: 'G1 perm', algs: ["R2 u R' U R' U' R u' R2 [y' R' U R]"] },
-    { id: 'G2', title: 'G2 perm', algs: ["[R' U' R y] R2 u R' U R U' R u' R2"] },
-    { id: 'F',  title: 'F perm (F=2)', algs: ["(R' U2 R' d') (R' F' R2) (U' R' U) (R' F R U' F)"] },
-    { id: 'V',  title: 'V perm (V=1)', algs: ["(R' U R' d') (R' F' R2) (U' R' U) (R' F R F)"] },
-    { id: 'R',  title: 'R perm', algs: ["(L U2 L' U2) (L F') (L' U' L U) (L F) L2 U"] },
-    { id: 'Y',  title: 'Y perm = T⁻¹ + T', algs: ["(F R U' R' U' R U R' F') (R U R' U' R' F R F')"] },
-    { id: 'E',  title: 'E perm [or just A1+A2]', algs: ["x' (R U' R') D (R U R') u2 (R' U R) D (R' U' R)"] },
-    { id: 'N',  title: 'N perm', algs: ["(L U' R U2 L' U R')x2 U"] },
-    { id: 'J',  title: 'J perm', algs: ["R' U L' U2 R U' R' U2 R L U'"] },
-    { id: 'Z',  title: 'Z perm', algs: ["M2 U M2 U M' U2 M2 U2 M' U2"] },
-    { id: 'U',  title: 'U perm', algs: ["R2 U (R U R' U') R' U' R' U R'", "F2 U M' U2 M U F2"] },
-    { id: 'A',  title: 'A perm', algs: ["r' U L' D2 L U' L' D2 L2"] },
-    { id: 'H',  title: 'H perm', algs: ["M2 U M2 U2 M2 U M2"] },
-    { id: 'T',  title: 'T perm', algs: ["(R U R' U') (R' F) (R2 U' R') U' (R U R' F')"] }
+    { id: 'Ua', cat: 'edge',   title: 'Ua perm · 逆時針三邊', algs: ["R U' R U R U R U' R' U' R2", "M2 U M U2 M' U M2"] },
+    { id: 'Ub', cat: 'edge',   title: 'Ub perm · 順時針三邊', algs: ["R2 U (R U R' U') R' U' R' U R'", "M2 U' M U2 M' U' M2", "F2 U M' U2 M U F2"] },
+    { id: 'H',  cat: 'edge',   title: 'H perm · 對邊互換',    algs: ["M2 U M2 U2 M2 U M2"] },
+    { id: 'Z',  cat: 'edge',   title: 'Z perm · 鄰邊互換',    algs: ["M2 U M2 U M' U2 M2 U2 M' U2"] },
+    { id: 'Aa', cat: 'corner', title: 'Aa perm · 順時針三角', algs: ["x (R' U R') D2 (R U' R') D2 R2"] },
+    { id: 'Ab', cat: 'corner', title: 'Ab perm · 逆時針三角', algs: ["x R2 D2 (R U R') D2 (R U' R)"] },
+    { id: 'E',  cat: 'corner', title: 'E perm · 兩組鄰角互換', algs: ["x' (R U' R') D (R U R') D' (R U R') D (R U' R') D'", "x' (R U' R') D (R U R') u2 (R' U R) D (R' U' R)"] },
+    { id: 'T',  cat: 'adj',    title: 'T perm · 鄰角對邊',    algs: ["(R U R' U') (R' F) (R2 U' R') U' (R U R' F')"] },
+    { id: 'Ja', cat: 'adj',    title: 'Ja perm · 鄰角鄰邊',   algs: ["R' U L' U2 R U' R' U2 R L U'"] },
+    { id: 'Jb', cat: 'adj',    title: 'Jb perm · 鄰角鄰邊',   algs: ["(R U R' F') (R U R' U') R' F R2 U' R' U'"] },
+    { id: 'Ra', cat: 'adj',    title: 'Ra perm · 鄰角鄰邊',   algs: ["(L U2 L' U2) (L F') (L' U' L U) (L F) L2 U"] },
+    { id: 'Rb', cat: 'adj',    title: 'Rb perm · 鄰角鄰邊',   algs: ["(R' U2 R U2) (R' F) (R U R' U') (R' F') R2 U'"] },
+    { id: 'F',  cat: 'adj',    title: 'F perm · 鄰角對邊',    algs: ["(R' U2 R' d') (R' F' R2) (U' R' U) (R' F R U' F)"] },
+    { id: 'V',  cat: 'diag',   title: 'V perm · 對角鄰邊',    algs: ["(R' U R' d') (R' F' R2) (U' R' U) (R' F R F)"] },
+    { id: 'Y',  cat: 'diag',   title: 'Y perm · 對角鄰邊',    algs: ["(F R U' R' U' R U R' F') (R U R' U' R' F R F')"] },
+    { id: 'Na', cat: 'diag',   title: 'Na perm · 對角對邊',   algs: ["(L U' R U2 L' U R')x2 U"] },
+    { id: 'Nb', cat: 'diag',   title: 'Nb perm · 對角對邊',   algs: ["(R' U L' U2 R U' L)x2 U'"] },
+    { id: 'Ga', cat: 'g',      title: 'Ga perm · G 循環',     algs: ["R2 u R' U R' U' R u' R2 [y' R' U R]"] },
+    { id: 'Gb', cat: 'g',      title: 'Gb perm · G 循環',     algs: ["[R' U' R y] R2 u R' U R U' R u' R2"] },
+    { id: 'Gc', cat: 'g',      title: 'Gc perm · G 循環',     algs: ["R2 u' R U' R U R' u R2 [y R U' R']"] },
+    { id: 'Gd', cat: 'g',      title: 'Gd perm · G 循環',     algs: ["[R U R' y'] R2 u' R U' R' U R' u R2"] }
   ];
 
-  // 預先由逆運算推導每個 OLL 圖示與 PLL 置換箭頭
+  // 預先由逆運算推導每個 OLL 圖示、4 向 AUF 特徵與 PLL 置換箭頭／特徵
+  const OLL_SIDE_B = ['B2', 'B1', 'B0'];
+  const OLL_SIDE_F = ['F0', 'F1', 'F2'];
+  const OLL_SIDE_L = ['L0', 'L1', 'L2'];
+  const OLL_SIDE_R = ['R2', 'R1', 'R0'];
+  function ollSigFromState(isU) {
+    let s = '';
+    for (let i = 0; i < 9; i++) s += isU('U' + i) ? '1' : '0';
+    for (const id of OLL_SIDE_B) s += isU(id) ? '1' : '0';
+    for (const id of OLL_SIDE_F) s += isU(id) ? '1' : '0';
+    for (const id of OLL_SIDE_L) s += isU(id) ? '1' : '0';
+    for (const id of OLL_SIDE_R) s += isU(id) ? '1' : '0';
+    return s;
+  }
+  const PLL_RING_SLOTS = ['F0', 'F1', 'F2', 'R0', 'R1', 'R2', 'B0', 'B1', 'B2', 'L0', 'L1', 'L2'];
+  const PLL_COLOR_ORDER = { F: 0, R: 1, B: 2, L: 3 };
+  function pllRingCanonical(faceAt) {
+    const arr = PLL_RING_SLOTS.map(id => PLL_COLOR_ORDER[faceAt(id)]);
+    if (arr.some(v => v === undefined)) return '';
+    let best = '';
+    for (let k = 0; k < 4; k++) {
+      const base = arr[(k * 3) % 12];
+      let sig = '';
+      for (let i = 0; i < 12; i++) sig += (arr[(i + k * 3) % 12] - base + 4) % 4;
+      if (!best || sig < best) best = sig;
+    }
+    return best;
+  }
+
   for (const item of OLL_CASES) {
     const moves = expandExtendedAlg(item.algs[0]);
     const inv = moves.slice().reverse().map(inverseMove);
@@ -2070,11 +2177,15 @@
     const isU = id => st[id][0] === 'U';
     item.pattern = {
       u: Array.from({length: 9}, (_, i) => isU('U' + i)),
-      topB: ['B2', 'B1', 'B0'].map(isU),
-      bottomF: ['F0', 'F1', 'F2'].map(isU),
-      leftL: ['L0', 'L1', 'L2'].map(isU),
-      rightR: ['R2', 'R1', 'R0'].map(isU)
+      topB: OLL_SIDE_B.map(isU),
+      bottomF: OLL_SIDE_F.map(isU),
+      leftL: OLL_SIDE_L.map(isU),
+      rightR: OLL_SIDE_R.map(isU)
     };
+    item.sigByAUF = [0, 1, 2, 3].map(k => {
+      const stRot = simulateMoves([...inv, ...Array((4 - k) % 4).fill('U')]);
+      return ollSigFromState(id => stRot[id][0] === 'U');
+    });
   }
   for (const item of PLL_CASES) {
     const moves = expandExtendedAlg(item.algs[0]);
@@ -2085,6 +2196,9 @@
       if (src !== dst) arrows.push([Number(src[1]), i]);
     }
     item.arrows = arrows;
+    const inv = moves.slice().reverse().map(inverseMove);
+    const stSetup = simulateMoves(inv);
+    item.pllCanon = pllRingCanonical(id => stSetup[id][0]);
   }
 
   function renderOLLSvg(pat) {
@@ -2134,14 +2248,32 @@
     </svg>`;
   }
 
-  function matchCurrentOLL(pat) {
-    if (!solved(p => p[1] >= 0)) return false;
-    const isU = id => stickerState[id] === COLORS.U;
-    return pat.u.every((v, i) => v === isU('U' + i)) &&
-      pat.topB.every((v, i) => v === isU(['B2', 'B1', 'B0'][i])) &&
-      pat.bottomF.every((v, i) => v === isU(['F0', 'F1', 'F2'][i])) &&
-      pat.leftL.every((v, i) => v === isU(['L0', 'L1', 'L2'][i])) &&
-      pat.rightR.every((v, i) => v === isU(['R2', 'R1', 'R0'][i]));
+  let ollFilter = 'all', pllFilter = 'all';
+  const OLL_AUF_LABELS = ['目前型態', '目前型態 (先轉 U)', '目前型態 (先轉 U2)', '目前型態 (先轉 U′)'];
+  function matchCurrentOLL(item) {
+    if (!solved(p => p[1] >= 0)) return -1;
+    const cur = ollSigFromState(id => stickerState[id] === COLORS.U);
+    return item.sigByAUF.indexOf(cur);
+  }
+  function matchCurrentPLL(item) {
+    if (!solved(p => p[1] >= 0) || !topFace([0, 1, 2, 3, 4, 5, 6, 7, 8]) || getStateKey() === SOLVED_KEY) return false;
+    return pllRingCanonical(id => HEX_TO_FACE[stickerState[id]]) === item.pllCanon;
+  }
+
+  function renderAlgCard(item, diagramHtml, matchTag) {
+    return `<div class="alg-card${matchTag ? ' matched' : ''}" data-card-alg="${item.algs[0]}" data-card-title="${item.title}" title="點擊直接展示此狀態的動態解法">
+      <div class="alg-diagram">${diagramHtml}</div>
+      <div class="alg-info">
+        <div class="alg-header">
+          <span class="alg-id">${item.title}</span>
+          ${matchTag ? `<span class="alg-tag">${matchTag}</span>` : ''}
+          <button class="alg-setup" data-setup="${item.algs[0]}" data-title="${item.title}" title="僅擺出此待解狀態"${processing ? ' disabled' : ''}>擺出狀態</button>
+        </div>
+        <div class="alg-btns">
+          ${item.algs.map(alg => `<div class="alg-btn-row"><button class="alg-play" data-alg="${alg}" data-title="${item.title}"${processing ? ' disabled' : ''}>▶ ${alg}</button></div>`).join('')}
+        </div>
+      </div>
+    </div>`;
   }
 
   function renderTutorial() {
@@ -2158,42 +2290,27 @@
       </details>`;
     }).join('');
 
-    $('ollGrid').innerHTML = OLL_CASES.map(item => {
-      const matched = matchCurrentOLL(item.pattern);
-      return `<div class="alg-card${matched ? ' matched' : ''}" data-card-alg="${item.algs[0]}" data-card-title="${item.title}" title="點擊直接展示此狀態的動態解法">
-        <div class="alg-diagram">${renderOLLSvg(item.pattern)}</div>
-        <div class="alg-info">
-          <div class="alg-header">
-            <span class="alg-id">${item.title}</span>
-            ${matched ? '<span class="alg-tag">目前型態</span>' : ''}
-            <button class="alg-setup" data-setup="${item.algs[0]}" data-title="${item.title}" title="僅擺出此待解狀態"${processing ? ' disabled' : ''}>擺出狀態</button>
-          </div>
-          <div class="alg-btns">
-            ${item.algs.map(alg => `<div class="alg-btn-row"><button class="alg-play" data-alg="${alg}" data-title="${item.title}"${processing ? ' disabled' : ''}>▶ ${alg}</button></div>`).join('')}
-          </div>
-        </div>
-      </div>`;
-    }).join('');
+    $('ollGrid').innerHTML = OLL_CASES
+      .filter(item => ollFilter === 'all' || item.cat === ollFilter)
+      .map(item => {
+        const rot = matchCurrentOLL(item);
+        return renderAlgCard(item, renderOLLSvg(item.pattern), rot >= 0 ? OLL_AUF_LABELS[rot] : '');
+      }).join('');
 
-    $('pllGrid').innerHTML = PLL_CASES.map(item => {
-      return `<div class="alg-card" data-card-alg="${item.algs[0]}" data-card-title="${item.title}" title="點擊直接展示此狀態的動態解法">
-        <div class="alg-diagram">${renderPLLSvg(item.arrows, item.id)}</div>
-        <div class="alg-info">
-          <div class="alg-header">
-            <span class="alg-id">${item.title}</span>
-            <button class="alg-setup" data-setup="${item.algs[0]}" data-title="${item.title}" title="僅擺出此待解狀態"${processing ? ' disabled' : ''}>擺出狀態</button>
-          </div>
-          <div class="alg-btns">
-            ${item.algs.map(alg => `<div class="alg-btn-row"><button class="alg-play" data-alg="${alg}" data-title="${item.title}"${processing ? ' disabled' : ''}>▶ ${alg}</button></div>`).join('')}
-          </div>
-        </div>
-      </div>`;
-    }).join('');
+    $('pllGrid').innerHTML = PLL_CASES
+      .filter(item => pllFilter === 'all' || item.cat === pllFilter)
+      .map(item => renderAlgCard(item, renderPLLSvg(item.arrows, item.id), matchCurrentPLL(item) ? '目前型態' : ''))
+      .join('');
   }
 
   // 動態解法控制器：支援「單步模式（每走一步自動停止，點擊繼續再播放一步）」與「連續播放」自由切換
   let stepByStepMode = true; // 預設開啟單步停頓模式，方便觀察每一步變化
   let runnerSession = null;
+
+  function setRunnerVisible(on) {
+    $('algRunnerBar').classList.toggle('active', on);
+    $('col-left').classList.toggle('has-runner', on);
+  }
 
   function syncRunnerControls() {
     const modeBtn = $('runnerModeBtn');
@@ -2220,26 +2337,35 @@
   function renderRunnerSteps() {
     if (!runnerSession) return;
     const { baseTitle, formula, moves, cursor, running } = runnerSession;
-    const bar = $('algRunnerBar');
-    bar.classList.add('active');
+    setRunnerVisible(true);
     const done = cursor >= moves.length;
     $('algRunnerTitle').textContent = done
       ? `${baseTitle} ✅ 完成`
       : (running ? `${baseTitle} (${cursor + 1}/${moves.length})` : `${baseTitle} · 等待下一步 (${cursor}/${moves.length})`);
     $('algRunnerFormula').textContent = formula;
 
-    const pills = $('algRunnerSteps').querySelectorAll('.alg-step-pill');
+    const stepsBox = $('algRunnerSteps');
+    const pills = stepsBox.querySelectorAll('.alg-step-pill');
     if (pills.length !== moves.length) {
-      $('algRunnerSteps').innerHTML = moves.map((m, idx) =>
+      stepsBox.innerHTML = moves.map((m, idx) =>
         `<span class="alg-step-pill" data-step-idx="${idx}">${m}</span>`
       ).join('');
     }
-    $('algRunnerSteps').querySelectorAll('.alg-step-pill').forEach((p, idx) => {
+    let activePill = null;
+    stepsBox.querySelectorAll('.alg-step-pill').forEach((p, idx) => {
       p.classList.toggle('done', idx < cursor);
       p.classList.toggle('active', running && idx === cursor);
       p.classList.toggle('next', !running && idx === cursor);
-      if (idx === cursor) p.scrollIntoView({ block: 'nearest', inline: 'center' });
+      if (idx === cursor) activePill = p;
     });
+    if (activePill && stepsBox.scrollHeight > stepsBox.clientHeight) {
+      const top = activePill.offsetTop - stepsBox.offsetTop;
+      const bottom = top + activePill.offsetHeight;
+      if (top < stepsBox.scrollTop) stepsBox.scrollTop = top;
+      else if (bottom > stepsBox.scrollTop + stepsBox.clientHeight) {
+        stepsBox.scrollTop = bottom - stepsBox.clientHeight;
+      }
+    }
     syncRunnerControls();
   }
 
@@ -2331,7 +2457,7 @@
     queue.length = 0;
     runnerSession = null;
     setNetPairs(null);
-    $('algRunnerBar').classList.remove('active');
+    setRunnerVisible(false);
   });
 
   // 點擊狀態或公式：自動對齊至該待解狀態（若尚未處於該狀態），並啟動支援單步停頓的動態解法
@@ -2385,6 +2511,24 @@
       });
       return;
     }
+    const ollChip = e.target.closest('[data-oll-cat]');
+    if (ollChip) {
+      ollFilter = ollChip.dataset.ollCat;
+      $('ollFilterBar').querySelectorAll('.filter-chip').forEach(b =>
+        b.classList.toggle('active', b === ollChip)
+      );
+      renderTutorial();
+      return;
+    }
+    const pllChip = e.target.closest('[data-pll-cat]');
+    if (pllChip) {
+      pllFilter = pllChip.dataset.pllCat;
+      $('pllFilterBar').querySelectorAll('.filter-chip').forEach(b =>
+        b.classList.toggle('active', b === pllChip)
+      );
+      renderTutorial();
+      return;
+    }
     const setupBtn = e.target.closest('[data-setup]');
     if (setupBtn) {
       e.stopPropagation();
@@ -2400,8 +2544,22 @@
       const solveMoves = expandExtendedAlg(alg);
       const inv = solveMoves.slice().reverse().map(inverseMove);
       startSolutionRunner(`${title} · 動態解法`, alg, solveMoves, { duration: 210, playFirstStep: false });
+      if (inv.length) {
+        runnerSession.running = true;
+        syncRunnerControls();
+        enqueue(inv.map((move, idx) => ({
+          move,
+          record: true,
+          duration: 95,
+          onDone: idx === inv.length - 1 ? () => {
+            if (runnerSession) {
+              runnerSession.running = false;
+              renderRunnerSteps();
+            }
+          } : undefined
+        })));
+      }
       toast(`已擺出 ${title} 待解狀態，點「繼續下一步」即可逐步解開`);
-      enqueue(inv, { record: true, duration: 95 });
       return;
     }
     const algBtn = e.target.closest('[data-alg]');
