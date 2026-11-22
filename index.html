@@ -149,6 +149,16 @@
     .cubie.swipe-hint .sticker {
       box-shadow: inset 0 0 6px rgba(255,255,255,0.25), 0 0 0 2px rgba(97,218,251,0.95), 0 0 12px rgba(97,218,251,0.55);
     }
+    .cubie.cubie-dim { opacity: 0.26; filter: saturate(0.25) brightness(0.65); transition: opacity 0.2s ease, filter 0.2s ease; }
+    .cubie.cubie-focus .sticker {
+      box-shadow: inset 0 0 6px rgba(255,255,255,0.35), 0 0 0 1.5px rgba(97,218,251,0.85);
+    }
+    .piece-badge {
+      width: 18px; height: 18px; border-radius: 50%;
+      background: rgba(7,16,29,0.88); color: #fff; border: 1.5px solid #61dafb;
+      font-size: 11px; font-weight: 900; display: grid; place-items: center;
+      pointer-events: none; line-height: 1; box-shadow: 0 1px 4px rgba(0,0,0,0.65);
+    }
     .center-label {
       font-size: 14px; font-weight: 900; font-family: monospace;
       color: rgba(0, 0, 0, 0.45); text-shadow: 0 0 3px rgba(255, 255, 255, 0.4);
@@ -457,11 +467,25 @@
       display: flex; align-items: center; justify-content: space-between; gap: 8px;
     }
     .alg-runner-title { font-weight: 800; font-size: 0.78rem; color: var(--accent); line-height: 1.3; min-width: 0; }
+    .alg-runner-visual { display: flex; align-items: center; gap: 10px; }
+    .runner-mini-top {
+      width: 104px; height: 104px; flex-shrink: 0; border-radius: 10px;
+      background: #060e18; border: 1px solid rgba(34,60,88,0.85);
+      display: grid; place-items: center;
+    }
+    .runner-mini-top:empty { display: none; }
+    .alg-runner-desc { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
     .alg-runner-formula {
       font-family: ui-monospace, monospace; color: #b7d7f5; font-size: 0.74rem; line-height: 1.4;
       white-space: normal; word-break: break-word; overflow: visible;
     }
     .alg-runner-formula:empty { display: none; }
+    .runner-feature-hint {
+      font-size: 0.71rem; line-height: 1.4; color: #8ecbff;
+      background: rgba(97,218,251,0.08); border: 1px solid rgba(97,218,251,0.22);
+      border-radius: 7px; padding: 4px 7px;
+    }
+    .runner-feature-hint:empty { display: none; }
     .alg-runner-controls { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
     .runner-btn {
       padding: 5px 9px; border-radius: 7px; font-size: 0.72rem; font-weight: 700;
@@ -478,15 +502,25 @@
     .runner-btn.step-mode-on {
       background: rgba(255, 159, 67, 0.2); border-color: var(--orange); color: var(--orange);
     }
+    .runner-btn.focus-on {
+      background: rgba(97, 218, 251, 0.16); border-color: var(--accent); color: var(--accent);
+    }
+    .runner-btn.peek-active {
+      background: rgba(179, 136, 255, 0.24); border-color: var(--purple); color: #ede0ff;
+    }
     .alg-runner-steps {
       display: flex; flex-wrap: wrap; gap: 4px; align-items: center; max-height: 132px;
       overflow-y: auto; -webkit-overflow-scrolling: touch;
     }
     .alg-step-pill {
-      padding: 2px 6px; border-radius: 5px; font-family: ui-monospace, monospace;
+      padding: 2px 6px 3px; border-radius: 5px; font-family: ui-monospace, monospace;
       font-size: 0.72rem; font-weight: 700; background: rgba(255,255,255,0.06);
       color: var(--muted); border: 1px solid transparent; transition: all 0.12s ease;
     }
+    .alg-step-pill[data-grp="0"] { box-shadow: inset 0 -2px 0 rgba(97, 218, 251, 0.7); }
+    .alg-step-pill[data-grp="1"] { box-shadow: inset 0 -2px 0 rgba(255, 183, 77, 0.75); }
+    .alg-step-pill[data-grp="2"] { box-shadow: inset 0 -2px 0 rgba(179, 136, 255, 0.75); }
+    .alg-step-pill[data-grp="3"] { box-shadow: inset 0 -2px 0 rgba(53, 211, 154, 0.75); }
     .alg-step-pill.done {
       background: rgba(53, 211, 154, 0.15); color: var(--green); border-color: rgba(53, 211, 154, 0.35);
     }
@@ -758,11 +792,20 @@
           <span class="alg-runner-title" id="algRunnerTitle">動態解法</span>
           <button class="runner-btn runner-close" id="runnerCloseBtn" aria-label="關閉追蹤器" title="關閉">✕</button>
         </div>
-        <div class="alg-runner-formula" id="algRunnerFormula"></div>
+        <div class="alg-runner-visual">
+          <div class="runner-mini-top" id="runnerTopMini" aria-label="頂層即時俯視圖"></div>
+          <div class="alg-runner-desc">
+            <div class="alg-runner-formula" id="algRunnerFormula"></div>
+            <div class="runner-feature-hint" id="runnerFeatureHint"></div>
+          </div>
+        </div>
         <div class="alg-runner-controls">
           <button class="runner-btn" id="runnerModeBtn" title="切換單步暫停或自動連播">🎯 單步模式: 關</button>
           <button class="runner-btn primary" id="runnerNextBtn" title="執行下一步">▶ 繼續下一步</button>
           <button class="runner-btn" id="runnerAutoBtn" title="自動連續播放剩餘步驟">⏩ 連播</button>
+          <button class="runner-btn" id="runnerReplayBtn" title="回到起點重播這條公式">↺ 重播</button>
+          <button class="runner-btn" id="runnerPeekBtn" title="按住查看交換前原狀">👁 原狀</button>
+          <button class="runner-btn focus-on" id="runnerFocusBtn" title="暗化未參與交換的底層方塊並標註編號">🔦 聚焦主角: 開</button>
         </div>
         <div class="alg-runner-steps" id="algRunnerSteps"></div>
       </div>
@@ -1423,7 +1466,27 @@
   }
   // 頂層俯視：U 面 3×3 + 四個側面的頂排；x 向右、z 向下（F 在下方）
   const isCornerSlot = id => slots[id].p.every(v => v !== 0);
-  function renderTopView() {
+  const TOP_SIDES = [
+    { name: '後(B)', ids: ['B2', 'B1', 'B0'], x1: -1, y1: -1.9, x2: 1, y2: -1.9 },
+    { name: '右(R)', ids: ['R2', 'R1', 'R0'], x1: 1.9, y1: -1, x2: 1.9, y2: 1 },
+    { name: '前(F)', ids: ['F0', 'F1', 'F2'], x1: -1, y1: 1.9, x2: 1, y2: 1.9 },
+    { name: '左(L)', ids: ['L0', 'L1', 'L2'], x1: -1.9, y1: -1, x2: -1.9, y2: 1 }
+  ];
+  function detectTopFeatures(stateObj) {
+    const items = [];
+    for (const side of TOP_SIDES) {
+      const [c0, c1, c2] = side.ids.map(id => stateObj[id]);
+      if (c0 === c1 && c1 === c2) items.push({ ...side, kind: 'bar', label: `整條在${side.name}` });
+      else if (c0 === c2) items.push({ ...side, kind: 'headlight', label: `頭燈在${side.name}` });
+      else if (c0 === c1 || c1 === c2) items.push({ ...side, kind: 'block2', label: `2×1塊在${side.name}` });
+    }
+    const barCount = items.filter(x => x.kind === 'bar').length;
+    const summaryText = barCount === 4 ? '四面皆同色（若未對齊可轉 U）'
+      : items.length ? items.map(x => x.label).join(' · ')
+      : '無頭燈（對角換位型）';
+    return { items, summaryText };
+  }
+  function buildTopViewSvg(stateObj, sizePx, idPrefix, slotNums) {
     const S = 44, C = 110, at = id => {
       const { p, n } = slots[id];
       return [C + (p[0] + n[0] * 0.72) * S, C + (p[2] + n[2] * 0.72) * S];
@@ -1432,11 +1495,19 @@
     const cells = top.map(id => {
       const [x, y] = at(id), side = slots[id].face !== 'U';
       const w = side && slots[id].n[0] ? 12 : 40, h = side && slots[id].n[2] ? 12 : 40;
-      return `<rect x="${x - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" rx="4" fill="${stickerState[id]}" stroke="#07101d" stroke-width="2"/>`;
+      return `<rect x="${x - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" rx="4" fill="${stateObj[id]}" stroke="#07101d" stroke-width="2"/>`;
     });
-    // 只畫和 U 面有關的箭頭：U→U 是換位置 (PLL)，U↔側面 是翻轉方向 (OLL)；側→側 與 U 箭頭重複故略過
+    const isAllU = Array.from({ length: 9 }, (_, i) => stateObj['U' + i] === COLORS.U).every(Boolean);
+    let featureMarks = '';
+    if (isAllU) {
+      const { items } = detectTopFeatures(stateObj);
+      featureMarks = items.map(it => {
+        const col = it.kind === 'bar' ? '#35d39a' : it.kind === 'headlight' ? '#61dafb' : '#ffb74d';
+        const dash = it.kind === 'headlight' ? ' stroke-dasharray="5,3"' : '';
+        return `<line x1="${(C + it.x1 * S).toFixed(1)}" y1="${(C + it.y1 * S).toFixed(1)}" x2="${(C + it.x2 * S).toFixed(1)}" y2="${(C + it.y2 * S).toFixed(1)}" stroke="${col}" stroke-width="4" stroke-linecap="round"${dash}/>`;
+      }).join('');
+    }
     const arrows = (netPairs || []).filter(([a, b]) => slots[a].p[1] === -1 && (slots[a].face === 'U' || slots[b].face === 'U'));
-    // OLL 型公式（有貼紙翻上頂面）只畫「側面 → 頂面」，否則順帶的換位箭頭會蓋掉重點
     const flipsUp = arrows.filter(([a, b]) => slots[a].face !== 'U' && slots[b].face === 'U');
     const shown = flipsUp.length ? flipsUp : arrows;
     const lines = shown.map(([a, b]) => {
@@ -1444,17 +1515,48 @@
       const k = 9 / d, sx = x1 + (x2 - x1) * k, sy = y1 + (y2 - y1) * k, ex = x2 - (x2 - x1) * k, ey = y2 - (y2 - y1) * k;
       const mx = (sx + ex) / 2 + (ey - sy) * 0.18, my = (sy + ey) / 2 - (ex - sx) * 0.18;
       const kind = isCornerSlot(a) ? 'c' : 'e';
-      return `<path d="M${sx.toFixed(1)},${sy.toFixed(1)} Q${mx.toFixed(1)},${my.toFixed(1)} ${ex.toFixed(1)},${ey.toFixed(1)}" fill="none" stroke="var(--arr-${kind})" stroke-width="3" marker-end="url(#tv-${kind})"/>`;
+      return `<path d="M${sx.toFixed(1)},${sy.toFixed(1)} Q${mx.toFixed(1)},${my.toFixed(1)} ${ex.toFixed(1)},${ey.toFixed(1)}" fill="none" stroke="var(--arr-${kind})" stroke-width="3" marker-end="url(#${idPrefix}-${kind})"/>`;
     });
-    const mk = k => `<marker id="tv-${k}" viewBox="0 0 6 6" refX="4" refY="3" markerWidth="4" markerHeight="4" orient="auto"><path d="M0,0.5 L5.5,3 L0,5.5 Z" fill="var(--arr-${k})"/></marker>`;
-    $('topView').innerHTML = `<svg viewBox="0 0 220 220" width="210" height="210" style="--arr-c:#2563eb;--arr-e:#ef4444">
-      <defs>${mk('c')}${mk('e')}</defs>${cells.join('')}${lines.join('')}</svg>`;
+    let numBadges = '';
+    if (slotNums && slotNums.size) {
+      numBadges = [...slotNums.entries()].map(([id, num]) => {
+        const [x, y] = at(id);
+        return `<g pointer-events="none"><circle cx="${x}" cy="${y}" r="8.5" fill="rgba(7,16,29,0.86)" stroke="#61dafb" stroke-width="1.5"/><text x="${x}" y="${y + 3.5}" text-anchor="middle" font-size="10" font-weight="900" fill="#fff">${num}</text></g>`;
+      }).join('');
+    }
+    const mk = k => `<marker id="${idPrefix}-${k}" viewBox="0 0 6 6" refX="4" refY="3" markerWidth="4" markerHeight="4" orient="auto"><path d="M0,0.5 L5.5,3 L0,5.5 Z" fill="var(--arr-${k})"/></marker>`;
+    return `<svg viewBox="0 0 220 220" width="${sizePx}" height="${sizePx}" style="--arr-c:#2563eb;--arr-e:#ef4444"><defs>${mk('c')}${mk('e')}</defs>${featureMarks}${cells.join('')}${lines.join('')}${numBadges}</svg>`;
+  }
+  function updateRunnerVisualHints() {
+    const mini = $('runnerTopMini'), hintEl = $('runnerFeatureHint');
+    if (!mini || !hintEl) return;
+    if (!runnerSession) { mini.innerHTML = ''; hintEl.textContent = ''; return; }
+    const slotNums = runnerSession.uSlotNums || null;
+    mini.innerHTML = buildTopViewSvg(stickerState, 96, 'rtv', slotNums);
+    const parts = [];
+    const isAllU = Array.from({ length: 9 }, (_, i) => stickerState['U' + i] === COLORS.U).every(Boolean);
+    if (isAllU) parts.push(detectTopFeatures(stickerState).summaryText);
+    const netHint = $('netHint')?.textContent;
+    if (netHint && netHint !== '播放 OLL / PLL 後顯示箭頭') parts.push(netHint);
+    if (runnerSession.triggers?.length) parts.push('口訣：' + runnerSession.triggers.join('、'));
+    hintEl.textContent = parts.join(' ｜ ');
+  }
+  function renderTopView() {
+    const slotNums = runnerSession?.uSlotNums || null;
+    $('topView').innerHTML = buildTopViewSvg(stickerState, 210, 'tv', slotNums);
 
-    if (!netPairs) { $('netHint').textContent = '播放 OLL / PLL 後顯示箭頭'; return; }
-    const corners = shown.filter(([a]) => isCornerSlot(a)).length;
-    $('netHint').textContent = !shown.length ? '這條公式不影響頂層'
-      : flipsUp.length ? `OLL：${flipsUp.length} 張側面貼紙翻上頂面（角 ${corners}、邊 ${shown.length - corners}）`
-      : `PLL：角 ${corners}、邊 ${shown.length - corners} 塊換位置`;
+    if (!netPairs) {
+      $('netHint').textContent = '播放 OLL / PLL 後顯示箭頭';
+    } else {
+      const arrows = netPairs.filter(([a, b]) => slots[a].p[1] === -1 && (slots[a].face === 'U' || slots[b].face === 'U'));
+      const flipsUp = arrows.filter(([a, b]) => slots[a].face !== 'U' && slots[b].face === 'U');
+      const shown = flipsUp.length ? flipsUp : arrows;
+      const corners = shown.filter(([a]) => isCornerSlot(a)).length;
+      $('netHint').textContent = !shown.length ? '這條公式不影響頂層'
+        : flipsUp.length ? `OLL：${flipsUp.length} 張側面貼紙翻上頂面（角 ${corners}、邊 ${shown.length - corners}）`
+        : `PLL：角 ${corners}、邊 ${shown.length - corners} 塊換位置`;
+    }
+    updateRunnerVisualHints();
   }
   function startProjectionAnimation(pairs, duration) { animState = { pairs, duration, start: performance.now(), done: false }; }
   let lastProjSig = '', lastTopSig = '', ringLayout = null, ringLayoutSize = '';
@@ -1801,7 +1903,7 @@
   function applyColorScheme(nextKey) {
     const oldHexToFace = { ...HEX_TO_FACE };
     const faceSnapshot = Object.fromEntries(slotList.map(id => [id, oldHexToFace[stickerState[id]] || 'U']));
-    const savedCubies = cubies.map(c => ({ p: [...c.p], o: c.o.map(r => [...r]) }));
+    const savedCubies = cubies.map(c => ({ p: [...c.p], o: c.o.map(r => [...r]), badgeNum: c.badgeNum || 0 }));
 
     currentSchemeKey = nextKey;
     const scheme = COLOR_SCHEMES[currentSchemeKey];
@@ -1817,9 +1919,11 @@
       cubies.forEach((c, idx) => {
         c.p = savedCubies[idx].p;
         c.o = savedCubies[idx].o;
+        c.badgeNum = savedCubies[idx].badgeNum;
         c.e.style.transform = toMatrix3d(c.o, c.p);
       });
     }
+    if (typeof syncCubieFocusClasses === 'function') syncCubieFocusClasses();
     syncPinColors();
     $('toggleScheme').textContent = `🎨 配色: ${scheme.label}`;
     $('toggleScheme').classList.toggle('active', currentSchemeKey === 'whiteBottom');
@@ -1911,6 +2015,7 @@
     queue.length = 0;
     runnerSession = null;
     setNetPairs(null);
+    clearPieceHighlights();
     setRunnerVisible(false);
     applySnapshot(lockedState);
     animState = null;
@@ -1924,6 +2029,7 @@
     queue.length = 0;
     runnerSession = null;
     setNetPairs(null);
+    clearPieceHighlights();
     initStickerState();
     build3DCube();
     resetExplored();
@@ -1979,62 +2085,84 @@
     L: [-1, 0, 0], R: [1, 0, 0],
     F: [0, 0, 1],  B: [0, 0, -1]
   };
-  function expandExtendedAlg(algStr) {
-    let s = algStr.replace(/\+/g, ' ').replace(/['’′]/g, "'").replace(/([UDFBLR])w/g, (_, f) => f.toLowerCase());
-    let prev;
-    do {
-      prev = s;
-      s = s.replace(/[\(\[]([^\(\)\[\]]+)[\)\]]\s*x(\d+)/g, (_, inner, count) =>
-        Array(Number(count)).fill(inner).join(' ')
-      );
-      s = s.replace(/[\(\[]([^\(\)\[\]]+)[\)\]]/g, '$1');
-    } while (s !== prev);
-
-    const tokens = s.match(/[UDFBLRMESudfblrxyz](?:2|'2|2'|')?/g) || [];
-    const rawSteps = [];
-    const pushWithMod = (baseMoves, mod) => {
+  const TRIGGER_NAMES = {
+    "R U R' U'": '上勾下回 (Sexy)',
+    "U R U' R'": '反上勾下回',
+    "R' F R F'": '小錘子 (Sledge)',
+    "F R' F' R": '反小錘子',
+    "L' U' L U": '左手上勾下回'
+  };
+  function expandExtendedAlgWithGroups(algStr) {
+    const norm = algStr.replace(/\+/g, ' ').replace(/['’′]/g, "'").replace(/([UDFBLR])w/g, (_, f) => f.toLowerCase());
+    const segRe = /[\(\[]([^\(\)\[\]]+)[\)\]]\s*(?:x(\d+))?|([^\(\)\[\]]+)/g;
+    const segments = [];
+    let m;
+    while ((m = segRe.exec(norm)) !== null) {
+      if (m[1] !== undefined) {
+        const inner = m[1].trim(), rep = m[2] ? Number(m[2]) : 1;
+        if (inner) segments.push({ text: Array(rep).fill(inner).join(' '), raw: inner });
+      } else if (m[3]) {
+        const plain = m[3].trim();
+        if (plain) segments.push({ text: plain, raw: plain });
+      }
+    }
+    const pushWithMod = (rawSteps, baseMoves, mod) => {
       if (mod === '2' || mod === "'2" || mod === "2'") {
         for (let k = 0; k < 2; k++) rawSteps.push(...baseMoves);
       } else if (mod === "'") {
         for (let i = baseMoves.length - 1; i >= 0; i--) {
-          const m = baseMoves[i];
-          rawSteps.push(m.endsWith("'") ? m[0] : m + "'");
+          const mvStr = baseMoves[i];
+          rawSteps.push(mvStr.endsWith("'") ? mvStr[0] : mvStr + "'");
         }
       } else {
         rawSteps.push(...baseMoves);
       }
     };
-
-    for (const tok of tokens) {
-      const ch = tok[0], mod = tok.slice(1);
-      if ('UDFBLRxyz'.includes(ch)) pushWithMod([ch], mod);
-      else if (ch === 'r') pushWithMod(['L', 'x'], mod);
-      else if (ch === 'l') pushWithMod(['R', "x'"], mod);
-      else if (ch === 'u') pushWithMod(['D', 'y'], mod);
-      else if (ch === 'd') pushWithMod(['U', "y'"], mod);
-      else if (ch === 'f') pushWithMod(['B', 'z'], mod);
-      else if (ch === 'b') pushWithMod(['F', "z'"], mod);
-      else if (ch === 'M') pushWithMod(['R', "L'", "x'"], mod);
-      else if (ch === 'E') pushWithMod(['U', "D'", "y'"], mod);
-      else if (ch === 'S') pushWithMod(["F'", 'B', 'z'], mod);
-    }
-
-    const transpose = m => m[0].map((_, j) => m.map(r => r[j]));
+    const transpose = mat => mat[0].map((_, j) => mat.map(r => r[j]));
     let ori = I();
     const rotSpecs = { x: ['x', 1], y: ['y', -1], z: ['z', 1] };
-    const finalMoves = [];
-    for (const step of rawSteps) {
-      const base = step[0], isPrime = step.endsWith("'");
-      if (rotSpecs[base]) {
-        const [axis, clock] = rotSpecs[base];
-        ori = mul(rotMatrix(axis, isPrime ? -clock : clock), ori);
-      } else {
-        const cNormal = mv(transpose(ori), FACE_NORMALS[base]);
-        const cFace = NORMAL_TO_FACE[cNormal.join(',')];
-        finalMoves.push(isPrime ? cFace + '′' : cFace);
+    const moves = [], groups = [], triggers = [];
+    let grpIdx = 0;
+    for (const seg of segments) {
+      const tokens = seg.text.match(/[UDFBLRMESudfblrxyz](?:2|'2|2'|')?/g) || [];
+      const rawSteps = [];
+      for (const tok of tokens) {
+        const ch = tok[0], mod = tok.slice(1);
+        if ('UDFBLRxyz'.includes(ch)) pushWithMod(rawSteps, [ch], mod);
+        else if (ch === 'r') pushWithMod(rawSteps, ['L', 'x'], mod);
+        else if (ch === 'l') pushWithMod(rawSteps, ['R', "x'"], mod);
+        else if (ch === 'u') pushWithMod(rawSteps, ['D', 'y'], mod);
+        else if (ch === 'd') pushWithMod(rawSteps, ['U', "y'"], mod);
+        else if (ch === 'f') pushWithMod(rawSteps, ['B', 'z'], mod);
+        else if (ch === 'b') pushWithMod(rawSteps, ['F', "z'"], mod);
+        else if (ch === 'M') pushWithMod(rawSteps, ['R', "L'", "x'"], mod);
+        else if (ch === 'E') pushWithMod(rawSteps, ['U', "D'", "y'"], mod);
+        else if (ch === 'S') pushWithMod(rawSteps, ["F'", 'B', 'z'], mod);
+      }
+      let added = 0;
+      for (const step of rawSteps) {
+        const base = step[0], isPrime = step.endsWith("'");
+        if (rotSpecs[base]) {
+          const [axis, clock] = rotSpecs[base];
+          ori = mul(rotMatrix(axis, isPrime ? -clock : clock), ori);
+        } else {
+          const cNormal = mv(transpose(ori), FACE_NORMALS[base]);
+          const cFace = NORMAL_TO_FACE[cNormal.join(',')];
+          moves.push(isPrime ? cFace + '′' : cFace);
+          groups.push(grpIdx % 4);
+          added++;
+        }
+      }
+      if (added) {
+        const trig = TRIGGER_NAMES[seg.raw.replace(/\s+/g, ' ')];
+        if (trig && !triggers.includes(trig)) triggers.push(trig);
+        grpIdx++;
       }
     }
-    return finalMoves;
+    return { moves, groups, triggers };
+  }
+  function expandExtendedAlg(algStr) {
+    return expandExtendedAlgWithGroups(algStr).moves;
   }
 
   function simulateMoves(moves) {
@@ -2305,7 +2433,90 @@
 
   // 動態解法控制器：支援「單步模式（每走一步自動停止，點擊繼續再播放一步）」與「連續播放」自由切換
   let stepByStepMode = true; // 預設開啟單步停頓模式，方便觀察每一步變化
+  let focusAffectedMode = true;
   let runnerSession = null;
+  let peekSaved = null;
+
+  function computeAffectedCubieNumbers(moves) {
+    const st = simulateMoves(moves);
+    const uChanged = id => st[id] !== id;
+    const posMap = new Map();
+    const uSlotNums = new Map();
+    let nextNum = 1;
+    // 先依置換循環順序標記角塊，再標記邊塊，最後補上其餘頂層變動塊
+    const order = [0, 2, 8, 6, 1, 5, 7, 3];
+    const visitedPos = new Set();
+    const visitCycleFrom = startIdx => {
+      let cur = startIdx;
+      while (cur >= 0 && !visitedPos.has(cur)) {
+        const uid = 'U' + cur;
+        const cubieKey = slots[uid].p.join(',');
+        const cubieIds = Object.values(slots).filter(s => s.p.join(',') === cubieKey).map(s => s.id);
+        if (!cubieIds.some(uChanged)) break;
+        visitedPos.add(cur);
+        if (!posMap.has(cubieKey)) {
+          const num = nextNum++;
+          posMap.set(cubieKey, num);
+          uSlotNums.set(uid, num);
+        }
+        const nextIdx = [0,1,2,3,4,5,6,7,8].find(d => st['U' + d] === uid);
+        cur = nextIdx === undefined ? -1 : nextIdx;
+      }
+    };
+    for (const idx of order) {
+      if (!visitedPos.has(idx)) visitCycleFrom(idx);
+    }
+    for (const sl of Object.values(slots)) {
+      if (sl.p[1] === -1 && uChanged(sl.id)) {
+        const key = sl.p.join(',');
+        if (!posMap.has(key)) posMap.set(key, nextNum++);
+      }
+    }
+    if (posMap.size === 0 || posMap.size > 8) return { cubieNums: null, uSlotNums: null };
+    return { cubieNums: posMap, uSlotNums };
+  }
+
+  function clearPieceHighlights() {
+    for (const c of cubies) {
+      c.badgeNum = 0;
+      c.e.classList.remove('cubie-dim', 'cubie-focus');
+      c.e.querySelectorAll('.piece-badge').forEach(b => b.remove());
+    }
+  }
+
+  function syncCubieFocusClasses() {
+    const active = focusAffectedMode && cubies.some(c => c.badgeNum > 0);
+    for (const c of cubies) {
+      c.e.querySelectorAll('.piece-badge').forEach(b => b.remove());
+      if (!active) {
+        c.e.classList.remove('cubie-dim', 'cubie-focus');
+      } else if (c.badgeNum > 0) {
+        c.e.classList.remove('cubie-dim');
+        c.e.classList.add('cubie-focus');
+        c.e.querySelectorAll('.sticker').forEach(st => {
+          if (st.querySelector('.center-label')) return;
+          const b = document.createElement('span');
+          b.className = 'piece-badge';
+          b.textContent = String(c.badgeNum);
+          st.appendChild(b);
+        });
+      } else {
+        c.e.classList.remove('cubie-focus');
+        c.e.classList.add('cubie-dim');
+      }
+    }
+  }
+
+  function applyPieceHighlights(cubieNums) {
+    clearPieceHighlights();
+    if (cubieNums && cubieNums.size) {
+      for (const c of cubies) {
+        const num = cubieNums.get(c.p.join(','));
+        if (num) c.badgeNum = num;
+      }
+    }
+    syncCubieFocusClasses();
+  }
 
   function setRunnerVisible(on) {
     $('algRunnerBar').classList.toggle('active', on);
@@ -2316,27 +2527,38 @@
     const modeBtn = $('runnerModeBtn');
     const nextBtn = $('runnerNextBtn');
     const autoBtn = $('runnerAutoBtn');
+    const replayBtn = $('runnerReplayBtn');
+    const peekBtn = $('runnerPeekBtn');
+    const focusBtn = $('runnerFocusBtn');
     if (!modeBtn || !nextBtn || !autoBtn) return;
 
     modeBtn.classList.toggle('step-mode-on', stepByStepMode);
     modeBtn.textContent = stepByStepMode ? '🎯 單步模式: 開' : '🔁 單步模式: 關';
+    if (focusBtn) {
+      focusBtn.classList.toggle('focus-on', focusAffectedMode);
+      focusBtn.textContent = focusAffectedMode ? '🔦 聚焦主角: 開' : '🔦 聚焦主角: 關';
+    }
 
     if (!runnerSession) {
       nextBtn.disabled = true;
       autoBtn.disabled = true;
+      if (replayBtn) replayBtn.disabled = true;
+      if (peekBtn) peekBtn.disabled = true;
       return;
     }
-    const { moves, cursor, running } = runnerSession;
+    const { moves, cursor, running, beforeSnapshot } = runnerSession;
     const done = cursor >= moves.length;
     nextBtn.disabled = done || running;
     nextBtn.textContent = done ? '✅ 已完成' : `▶ 繼續下一步 (${cursor + 1}/${moves.length})`;
     autoBtn.disabled = done;
     autoBtn.textContent = (!stepByStepMode && running) ? '⏸ 暫停' : '⏩ 連播';
+    if (replayBtn) replayBtn.disabled = !beforeSnapshot || running;
+    if (peekBtn) peekBtn.disabled = !beforeSnapshot || cursor === 0 || running;
   }
 
   function renderRunnerSteps() {
     if (!runnerSession) return;
-    const { baseTitle, formula, moves, cursor, running } = runnerSession;
+    const { baseTitle, formula, moves, groups, cursor, running } = runnerSession;
     setRunnerVisible(true);
     const done = cursor >= moves.length;
     $('algRunnerTitle').textContent = done
@@ -2347,9 +2569,10 @@
     const stepsBox = $('algRunnerSteps');
     const pills = stepsBox.querySelectorAll('.alg-step-pill');
     if (pills.length !== moves.length) {
-      stepsBox.innerHTML = moves.map((m, idx) =>
-        `<span class="alg-step-pill" data-step-idx="${idx}">${m}</span>`
-      ).join('');
+      stepsBox.innerHTML = moves.map((m, idx) => {
+        const grp = groups ? groups[idx] : 0;
+        return `<span class="alg-step-pill" data-step-idx="${idx}" data-grp="${grp}">${m}</span>`;
+      }).join('');
     }
     let activePill = null;
     stepsBox.querySelectorAll('.alg-step-pill').forEach((p, idx) => {
@@ -2366,6 +2589,7 @@
         stepsBox.scrollTop = bottom - stepsBox.clientHeight;
       }
     }
+    updateRunnerVisualHints();
     syncRunnerControls();
   }
 
@@ -2397,17 +2621,28 @@
   }
 
   function startSolutionRunner(baseTitle, formula, moves, options = {}) {
-    const { duration = 210, initialDelay = 0, playFirstStep = true } = options;
+    const {
+      duration = 210, initialDelay = 0, playFirstStep = true,
+      groups = null, triggers = [], beforeSnapshot = null, deferHighlights = false
+    } = options;
     queue.length = 0;
-    setNetPairs(moves);
+    const { cubieNums, uSlotNums } = computeAffectedCubieNumbers(moves);
     runnerSession = {
       baseTitle,
       formula,
       moves,
+      groups,
+      triggers,
+      cubieNums,
+      uSlotNums,
+      beforeSnapshot: beforeSnapshot || snapshotCube(),
       cursor: 0,
       duration,
       running: false
     };
+    if (!deferHighlights) applyPieceHighlights(cubieNums);
+    setNetPairs(moves);
+    renderTopView();
     renderRunnerSteps();
     if (playFirstStep && moves.length) {
       if (initialDelay > 0) {
@@ -2452,11 +2687,56 @@
     }
   });
 
+  $('runnerReplayBtn').addEventListener('click', e => {
+    e.stopPropagation();
+    if (!runnerSession || !runnerSession.beforeSnapshot || runnerSession.running || processing) return;
+    queue.length = 0;
+    applySnapshot(runnerSession.beforeSnapshot);
+    runnerSession.cursor = 0;
+    runnerSession.running = false;
+    applyPieceHighlights(runnerSession.cubieNums);
+    renderTopView();
+    updateUI();
+    renderRunnerSteps();
+    if (!stepByStepMode) stepSolutionRunner();
+  });
+
+  const endPeek = () => {
+    if (!peekSaved) return;
+    applySnapshot(peekSaved);
+    peekSaved = null;
+    $('runnerPeekBtn').classList.remove('peek-active');
+    renderTopView();
+    updateUI();
+  };
+  $('runnerPeekBtn').addEventListener('pointerdown', e => {
+    e.stopPropagation();
+    if (!runnerSession || !runnerSession.beforeSnapshot || runnerSession.cursor === 0 || runnerSession.running || processing) return;
+    peekSaved = snapshotCube();
+    applySnapshot(runnerSession.beforeSnapshot);
+    $('runnerPeekBtn').classList.add('peek-active');
+    renderTopView();
+    updateUI();
+  });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev =>
+    $('runnerPeekBtn').addEventListener(ev, endPeek)
+  );
+
+  $('runnerFocusBtn').addEventListener('click', e => {
+    e.stopPropagation();
+    focusAffectedMode = !focusAffectedMode;
+    syncCubieFocusClasses();
+    syncRunnerControls();
+    toast(focusAffectedMode ? '已聚焦主角方塊並顯示編號' : '已恢復全部方塊亮度');
+  });
+
   $('runnerCloseBtn').addEventListener('click', e => {
     e.stopPropagation();
     queue.length = 0;
     runnerSession = null;
+    peekSaved = null;
     setNetPairs(null);
+    clearPieceHighlights();
     setRunnerVisible(false);
   });
 
@@ -2464,7 +2744,7 @@
   function playDynamicCaseSolution(title, alg, forceSetup = true) {
     closeTutorial();
     queue.length = 0;
-    const solveMoves = expandExtendedAlg(alg);
+    const { moves: solveMoves, groups, triggers } = expandExtendedAlgWithGroups(alg);
     if (!solveMoves.length) return;
 
     if (forceSetup) {
@@ -2491,9 +2771,15 @@
       visitedStates.clear();
       visitedStates.add(currentNodeKey);
       updateUI();
-      startSolutionRunner(`${title} · 動態解法`, alg, solveMoves, { duration: 210, initialDelay: 320, playFirstStep: true });
+      startSolutionRunner(`${title} · 動態解法`, alg, solveMoves, {
+        duration: 210, initialDelay: 320, playFirstStep: true,
+        groups, triggers, beforeSnapshot: snapshotCube()
+      });
     } else {
-      startSolutionRunner(`${title} · 動態解法`, alg, solveMoves, { duration: 210, initialDelay: 0, playFirstStep: true });
+      startSolutionRunner(`${title} · 動態解法`, alg, solveMoves, {
+        duration: 210, initialDelay: 0, playFirstStep: true,
+        groups, triggers, beforeSnapshot: snapshotCube()
+      });
     }
   }
 
@@ -2536,14 +2822,17 @@
       const title = setupBtn.dataset.title || '題型';
       closeTutorial();
       queue.length = 0;
+      clearPieceHighlights();
       initStickerState();
       build3DCube();
       resetExplored();
       animState = null;
       updateUI();
-      const solveMoves = expandExtendedAlg(alg);
+      const { moves: solveMoves, groups, triggers } = expandExtendedAlgWithGroups(alg);
       const inv = solveMoves.slice().reverse().map(inverseMove);
-      startSolutionRunner(`${title} · 動態解法`, alg, solveMoves, { duration: 210, playFirstStep: false });
+      startSolutionRunner(`${title} · 動態解法`, alg, solveMoves, {
+        duration: 210, playFirstStep: false, groups, triggers, deferHighlights: true
+      });
       if (inv.length) {
         runnerSession.running = true;
         syncRunnerControls();
@@ -2553,7 +2842,10 @@
           duration: 95,
           onDone: idx === inv.length - 1 ? () => {
             if (runnerSession) {
+              runnerSession.beforeSnapshot = snapshotCube();
+              applyPieceHighlights(runnerSession.cubieNums);
               runnerSession.running = false;
+              renderTopView();
               renderRunnerSteps();
             }
           } : undefined
