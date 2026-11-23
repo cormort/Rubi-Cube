@@ -153,11 +153,17 @@
     .cubie.cubie-focus .sticker {
       box-shadow: inset 0 0 6px rgba(255,255,255,0.35), 0 0 0 1.5px rgba(97,218,251,0.85);
     }
+    .cubie.cubie-pillar .sticker {
+      box-shadow: inset 0 0 6px rgba(255,255,255,0.4), 0 0 0 2px #ff9f43, 0 0 10px rgba(255,159,67,0.5);
+    }
     .piece-badge {
       width: 18px; height: 18px; border-radius: 50%;
       background: rgba(7,16,29,0.88); color: #fff; border: 1.5px solid #61dafb;
       font-size: 11px; font-weight: 900; display: grid; place-items: center;
       pointer-events: none; line-height: 1; box-shadow: 0 1px 4px rgba(0,0,0,0.65);
+    }
+    .piece-badge.pillar-badge {
+      border-color: #ff9f43; background: rgba(66, 32, 6, 0.92); color: #ffd6a5; font-size: 10px;
     }
     .center-label {
       font-size: 14px; font-weight: 900; font-family: monospace;
@@ -504,6 +510,9 @@
     }
     .runner-btn.focus-on {
       background: rgba(97, 218, 251, 0.16); border-color: var(--accent); color: var(--accent);
+    }
+    .runner-btn.pillar-on {
+      background: rgba(255, 159, 67, 0.2); border-color: var(--orange); color: #ffd6a5;
     }
     .runner-btn.peek-active {
       background: rgba(179, 136, 255, 0.24); border-color: var(--purple); color: #ede0ff;
@@ -861,6 +870,7 @@
           <button class="action-btn" id="lockStateBtn">📌 鎖定狀態</button>
           <button class="action-btn" id="restoreStateBtn" disabled>⤴ 回到鎖定</button>
           <button class="action-btn solve wide" id="solveBtn">🧠 Kociemba 求解</button>
+          <button class="action-btn wide" id="lastLayerBtn" title="底兩層完成後，依頂層俯視比對 OLL / PLL 公式">🧩 頂層公式解 (OLL/PLL)</button>
         </div>
       </div>
 
@@ -1534,6 +1544,11 @@
     const slotNums = runnerSession.uSlotNums || null;
     mini.innerHTML = buildTopViewSvg(stickerState, 96, 'rtv', slotNums);
     const parts = [];
+    if (focusMode === 'pillar') {
+      parts.push(runnerSession.pillarLabels?.length
+        ? `角柱追蹤：${runnerSession.pillarLabels.join('、')}（拉上頂層再插回）`
+        : '此公式未拆動底層角柱（僅動中層／頂層）');
+    }
     const isAllU = Array.from({ length: 9 }, (_, i) => stickerState['U' + i] === COLORS.U).every(Boolean);
     if (isAllU) parts.push(detectTopFeatures(stickerState).summaryText);
     const netHint = $('netHint')?.textContent;
@@ -1903,7 +1918,9 @@
   function applyColorScheme(nextKey) {
     const oldHexToFace = { ...HEX_TO_FACE };
     const faceSnapshot = Object.fromEntries(slotList.map(id => [id, oldHexToFace[stickerState[id]] || 'U']));
-    const savedCubies = cubies.map(c => ({ p: [...c.p], o: c.o.map(r => [...r]), badgeNum: c.badgeNum || 0 }));
+    const savedCubies = cubies.map(c => ({
+      p: [...c.p], o: c.o.map(r => [...r]), badgeNum: c.badgeNum || 0, pillarTag: c.pillarTag || ''
+    }));
 
     currentSchemeKey = nextKey;
     const scheme = COLOR_SCHEMES[currentSchemeKey];
@@ -1920,6 +1937,7 @@
         c.p = savedCubies[idx].p;
         c.o = savedCubies[idx].o;
         c.badgeNum = savedCubies[idx].badgeNum;
+        c.pillarTag = savedCubies[idx].pillarTag;
         c.e.style.transform = toMatrix3d(c.o, c.p);
       });
     }
@@ -2165,8 +2183,8 @@
     return expandExtendedAlgWithGroups(algStr).moves;
   }
 
-  function simulateMoves(moves) {
-    const st = Object.fromEntries(FACES.flatMap(f => Array.from({length:9}, (_, i) => [f+i, f+i])));
+  function simulateMoves(moves, init) {
+    const st = init ? { ...init } : Object.fromEntries(FACES.flatMap(f => Array.from({length:9}, (_, i) => [f+i, f+i])));
     for (const move of moves) {
       const base = move[0], [axis, layer, clock] = specs[base];
       const dir = move.includes('′') ? -clock : clock;
@@ -2433,9 +2451,48 @@
 
   // 動態解法控制器：支援「單步模式（每走一步自動停止，點擊繼續再播放一步）」與「連續播放」自由切換
   let stepByStepMode = true; // 預設開啟單步停頓模式，方便觀察每一步變化
-  let focusAffectedMode = true;
+  let focusMode = 'top'; // 'top' | 'pillar' | 'off'
   let runnerSession = null;
   let peekSaved = null;
+
+  const F2L_PILLARS = [
+    { id: 'FR', label: '右前(FR)', keys: ['1,1,1', '1,0,1'] },
+    { id: 'FL', label: '左前(FL)', keys: ['-1,1,1', '-1,0,1'] },
+    { id: 'BR', label: '右後(BR)', keys: ['1,1,-1', '1,0,-1'] },
+    { id: 'BL', label: '左後(BL)', keys: ['-1,1,-1', '-1,0,-1'] }
+  ];
+
+  function computeActivePillars(moves) {
+    const tracked = F2L_PILLARS.map(pl => ({
+      ...pl,
+      cubies: pl.keys.map(k => ({ homeKey: k, p: k.split(',').map(Number) })),
+      uSteps: 0
+    }));
+    for (const move of moves) {
+      const base = move[0], [axis, layer, clock] = specs[base];
+      const dir = move.includes('′') ? -clock : clock;
+      const R = rotMatrix(axis, dir);
+      const axIdx = { x: 0, y: 1, z: 2 }[axis];
+      for (const pl of tracked) {
+        let inU = false;
+        for (const cb of pl.cubies) {
+          if (cb.p[axIdx] === layer) cb.p = mv(R, cb.p);
+          if (cb.p[1] === -1) inU = true;
+        }
+        if (inU) pl.uSteps++;
+      }
+    }
+    const active = tracked.filter(pl => pl.uSteps > 0).sort((a, b) => b.uSteps - a.uSteps).slice(0, 2);
+    const pillarMap = new Map();
+    const pillarLabels = [];
+    const tags = active.length > 1 ? ['A', 'B'] : ['柱'];
+    active.forEach((pl, idx) => {
+      const tag = tags[idx];
+      pillarLabels.push(active.length > 1 ? `${pl.label}(${tag})` : pl.label);
+      pl.keys.forEach(k => pillarMap.set(k, tag));
+    });
+    return { pillarMap, pillarLabels };
+  }
 
   function computeAffectedCubieNumbers(moves) {
     const st = simulateMoves(moves);
@@ -2479,19 +2536,22 @@
   function clearPieceHighlights() {
     for (const c of cubies) {
       c.badgeNum = 0;
-      c.e.classList.remove('cubie-dim', 'cubie-focus');
+      c.pillarTag = '';
+      c.e.classList.remove('cubie-dim', 'cubie-focus', 'cubie-pillar');
       c.e.querySelectorAll('.piece-badge').forEach(b => b.remove());
     }
   }
 
   function syncCubieFocusClasses() {
-    const active = focusAffectedMode && cubies.some(c => c.badgeNum > 0);
+    const hasTop = cubies.some(c => c.badgeNum > 0);
+    const hasPillar = cubies.some(c => c.pillarTag);
+    const useTop = focusMode === 'top' && hasTop;
+    const usePillar = focusMode === 'pillar' && hasPillar;
     for (const c of cubies) {
       c.e.querySelectorAll('.piece-badge').forEach(b => b.remove());
-      if (!active) {
-        c.e.classList.remove('cubie-dim', 'cubie-focus');
-      } else if (c.badgeNum > 0) {
-        c.e.classList.remove('cubie-dim');
+      c.e.classList.remove('cubie-dim', 'cubie-focus', 'cubie-pillar');
+      if (!useTop && !usePillar) continue;
+      if (useTop && c.badgeNum > 0) {
         c.e.classList.add('cubie-focus');
         c.e.querySelectorAll('.sticker').forEach(st => {
           if (st.querySelector('.center-label')) return;
@@ -2500,20 +2560,27 @@
           b.textContent = String(c.badgeNum);
           st.appendChild(b);
         });
+      } else if (usePillar && c.pillarTag) {
+        c.e.classList.add('cubie-pillar');
+        c.e.querySelectorAll('.sticker').forEach(st => {
+          if (st.querySelector('.center-label')) return;
+          const b = document.createElement('span');
+          b.className = 'piece-badge pillar-badge';
+          b.textContent = c.pillarTag;
+          st.appendChild(b);
+        });
       } else {
-        c.e.classList.remove('cubie-focus');
         c.e.classList.add('cubie-dim');
       }
     }
   }
 
-  function applyPieceHighlights(cubieNums) {
+  function applyPieceHighlights(cubieNums, pillarMap) {
     clearPieceHighlights();
-    if (cubieNums && cubieNums.size) {
-      for (const c of cubies) {
-        const num = cubieNums.get(c.p.join(','));
-        if (num) c.badgeNum = num;
-      }
+    for (const c of cubies) {
+      const k = c.p.join(',');
+      if (cubieNums && cubieNums.has(k)) c.badgeNum = cubieNums.get(k);
+      if (pillarMap && pillarMap.has(k)) c.pillarTag = pillarMap.get(k);
     }
     syncCubieFocusClasses();
   }
@@ -2535,8 +2602,11 @@
     modeBtn.classList.toggle('step-mode-on', stepByStepMode);
     modeBtn.textContent = stepByStepMode ? '🎯 單步模式: 開' : '🔁 單步模式: 關';
     if (focusBtn) {
-      focusBtn.classList.toggle('focus-on', focusAffectedMode);
-      focusBtn.textContent = focusAffectedMode ? '🔦 聚焦主角: 開' : '🔦 聚焦主角: 關';
+      focusBtn.classList.toggle('focus-on', focusMode === 'top');
+      focusBtn.classList.toggle('pillar-on', focusMode === 'pillar');
+      focusBtn.textContent = focusMode === 'top' ? '🔦 聚焦: 頂層主角'
+        : focusMode === 'pillar' ? '🧱 聚焦: 追蹤角柱'
+        : '🔦 聚焦: 關';
     }
 
     if (!runnerSession) {
@@ -2627,6 +2697,7 @@
     } = options;
     queue.length = 0;
     const { cubieNums, uSlotNums } = computeAffectedCubieNumbers(moves);
+    const { pillarMap, pillarLabels } = computeActivePillars(moves);
     runnerSession = {
       baseTitle,
       formula,
@@ -2635,12 +2706,14 @@
       triggers,
       cubieNums,
       uSlotNums,
+      pillarMap,
+      pillarLabels,
       beforeSnapshot: beforeSnapshot || snapshotCube(),
       cursor: 0,
       duration,
       running: false
     };
-    if (!deferHighlights) applyPieceHighlights(cubieNums);
+    if (!deferHighlights) applyPieceHighlights(cubieNums, pillarMap);
     setNetPairs(moves);
     renderTopView();
     renderRunnerSteps();
@@ -2694,7 +2767,7 @@
     applySnapshot(runnerSession.beforeSnapshot);
     runnerSession.cursor = 0;
     runnerSession.running = false;
-    applyPieceHighlights(runnerSession.cubieNums);
+    applyPieceHighlights(runnerSession.cubieNums, runnerSession.pillarMap);
     renderTopView();
     updateUI();
     renderRunnerSteps();
@@ -2724,10 +2797,17 @@
 
   $('runnerFocusBtn').addEventListener('click', e => {
     e.stopPropagation();
-    focusAffectedMode = !focusAffectedMode;
+    focusMode = focusMode === 'top' ? 'pillar' : focusMode === 'pillar' ? 'off' : 'top';
     syncCubieFocusClasses();
+    updateRunnerVisualHints();
     syncRunnerControls();
-    toast(focusAffectedMode ? '已聚焦主角方塊並顯示編號' : '已恢復全部方塊亮度');
+    if (focusMode === 'pillar') {
+      toast(runnerSession?.pillarLabels?.length
+        ? `已切換追蹤角柱：${runnerSession.pillarLabels.join('、')}`
+        : '此公式未拆動底層角柱（僅動中層／頂層）');
+    } else {
+      toast(focusMode === 'top' ? '已聚焦頂層交換主角並顯示編號' : '已恢復全部方塊亮度');
+    }
   });
 
   $('runnerCloseBtn').addEventListener('click', e => {
@@ -2843,7 +2923,7 @@
           onDone: idx === inv.length - 1 ? () => {
             if (runnerSession) {
               runnerSession.beforeSnapshot = snapshotCube();
-              applyPieceHighlights(runnerSession.cubieNums);
+              applyPieceHighlights(runnerSession.cubieNums, runnerSession.pillarMap);
               runnerSession.running = false;
               renderTopView();
               renderRunnerSteps();
@@ -3003,6 +3083,33 @@
       solverPending = false;
       toast('求解器無回應，請重新整理後再試', 'err');
     }, 20000);
+  });
+
+  // 頂層公式解：前後各試 4 種 AUF × 公式庫，暴力比對（OLL 57×4、PLL 22×16，模擬量很小）
+  const AUFS = ['', 'U', 'U2', "U'"];
+  function findLastLayerStep(state, cases, done) {
+    for (const pre of AUFS) for (const item of cases) for (const post of AUFS) {
+      const alg = [pre, item.algs[0], post].filter(Boolean).join(' ');
+      const st = simulateMoves(expandExtendedAlg(alg), state);
+      if (done(st)) return { item, alg, st };
+    }
+    return null;
+  }
+  const PLL_WITH_SKIP = [{ title: 'PLL skip', algs: [''] }, ...PLL_CASES];
+  $('lastLayerBtn').addEventListener('click', () => {
+    if (getStateKey() === SOLVED_KEY) { toast('目前已是完成狀態'); return; }
+    if (processing || queue.length) { toast('請等待轉動佇列執行完畢'); return; }
+    if (!solved(p => p[1] >= 0)) { toast('底兩層（F2L）尚未完成，只剩頂層時才能套公式', 'err'); return; }
+    const topDone = st => Array.from({length: 9}, (_, i) => st['U' + i]).every(c => c === COLORS.U);
+    const ollDone = topDone(stickerState);
+    const oll = ollDone ? null : findLastLayerStep(stickerState, OLL_CASES, topDone);
+    if (!ollDone && !oll) { toast('找不到對應的 OLL 公式', 'err'); return; }
+    const pll = findLastLayerStep(oll ? oll.st : stickerState, PLL_WITH_SKIP, st => getStateKey(st) === SOLVED_KEY);
+    if (!pll) { toast('找不到對應的 PLL 公式', 'err'); return; }
+    const parts = [oll && `(${oll.alg})`, pll.alg && `(${pll.alg})`].filter(Boolean);
+    const title = [oll?.item.title, pll.item.title].join(' → ').replace(/^ → /, '');
+    toast(`頂層：${title}`, 'ok');
+    playDynamicCaseSolution(title, parts.join(' '), false);
   });
 
   // 本機儲存：切到背景 / 關閉時存下方塊與鎖定狀態，下次開啟自動還原
